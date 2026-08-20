@@ -17,9 +17,6 @@ namespace api_handlers {
 namespace beast = boost::beast;
 namespace http = beast::http;
 
-// Forward declaration для доступа к RequestHandler
-class RequestHandler;
-
 template <typename Send>
 void HandleJoinRequest(const http::request<http::string_body>& req,
                        model::Game& game, model::Players& players,
@@ -367,8 +364,7 @@ void HandlePlayerAction(
 
 template <typename Body, typename Allocator, typename Send>
 void HandleTickRequest(http::request<Body, http::basic_fields<Allocator>>&& req,
-                       model::Game& game, Send&& send,
-                       RequestHandler* handler = nullptr) {
+                       model::Game& game, Send&& send) {
   if (req.method() != http::verb::post) {
     response_helpers::SendErrorResponseWithAllow(
         std::forward<Send>(send), http::status::method_not_allowed,
@@ -415,11 +411,6 @@ void HandleTickRequest(http::request<Body, http::basic_fields<Allocator>>&& req,
     }
 
     game.UpdateTime(delta_time);
-
-    // ===== СОХРАНЯЕМ СОСТОЯНИЕ ПОСЛЕ ТИКА =====
-    if (handler) {
-      handler->SaveState();
-    }
 
     http::response<http::string_body> response{http::status::ok, 11};
     response.set(http::field::content_type, "application/json");

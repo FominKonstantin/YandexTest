@@ -221,9 +221,11 @@ class RequestHandler {
         return;
       }
       if constexpr (std::is_same_v<Body, http::string_body>) {
-        // Передаем this для сохранения состояния после тика
+        // Обрабатываем тик
         api_handlers::HandleTickRequest(std::move(req), game_,
-                                        std::forward<Send>(send), this);
+                                        std::forward<Send>(send));
+        // Сохраняем состояние ПОСЛЕ тика
+        SaveState();
       } else {
         response_helpers::SendErrorResponse(
             std::forward<Send>(send), http::status::bad_request,
