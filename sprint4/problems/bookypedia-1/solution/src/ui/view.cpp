@@ -29,7 +29,7 @@ template <typename T>
 void PrintVector(std::ostream& out, const std::vector<T>& vector) {
   int i = 1;
   for (auto& value : vector) {
-    out << i++ << ". " << value << std::endl;
+    out << i++ << ". " << value << std::endl;  
   }
 }
 

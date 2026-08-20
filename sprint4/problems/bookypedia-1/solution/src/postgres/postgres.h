@@ -37,14 +37,23 @@ class Database {
  public:
   explicit Database(pqxx::connection connection);
 
-  AuthorRepositoryImpl& GetAuthors() & { return authors_; }
+  AuthorRepositoryImpl& GetAuthors() & {
+    EnsureTablesCreated();
+    return authors_;
+  }
 
-  BookRepositoryImpl& GetBooks() & { return books_; }
+  BookRepositoryImpl& GetBooks() & {
+    EnsureTablesCreated();
+    return books_;
+  }
 
  private:
+  void EnsureTablesCreated();
+
   pqxx::connection connection_;
   AuthorRepositoryImpl authors_{connection_};
   BookRepositoryImpl books_{connection_};
+  bool tables_created_{false};
 };
 
 }  // namespace postgres
