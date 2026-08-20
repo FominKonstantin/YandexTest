@@ -264,13 +264,20 @@ void RestoreGameState(model::Game& game, model::Players& players,
     }
   }
 
-  // Восстанавливаем игроков с токенами и именами
+  // ====== ВАЖНО: Восстанавливаем игроков с токенами ======
+  // Сначала очищаем существующих игроков
   players.ClearPlayers();
+
+  // Затем восстанавливаем каждого игрока с его токеном
   for (const auto& player_state : state.players) {
     players.RestorePlayerWithToken(
-        player_state.token, player_state.player_id, player_state.name,
-        model::Map::Id(player_state.map_id), player_state.dog_id);
+        player_state.token,                   // Токен
+        player_state.player_id,               // ID игрока
+        player_state.name,                    // Имя
+        model::Map::Id(player_state.map_id),  // ID карты
+        player_state.dog_id);                 // ID собаки
   }
+  // =======================================================
 }
 
 }  // namespace state_serialization
