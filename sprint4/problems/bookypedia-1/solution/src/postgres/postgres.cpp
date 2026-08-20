@@ -29,10 +29,10 @@ ORDER BY name;
   std::vector<domain::Author> authors;
   authors.reserve(res.size());
 
-  for (auto row : res) {
+  for (size_t i = 0; i < res.size(); ++i) {
     authors.emplace_back(
-        domain::AuthorId::FromString(row[0].template as<std::string>()),
-        row[1].template as<std::string>());
+        domain::AuthorId::FromString(res[i][0].as<std::string>()),
+        res[i][1].as<std::string>());
   }
 
   return authors;
@@ -65,11 +65,10 @@ ORDER BY title;
   std::vector<domain::Book> books;
   books.reserve(res.size());
 
-  for (auto row : res) {
-    books.emplace_back(
-        domain::BookId::FromString(row[0].template as<std::string>()),
-        row[1].template as<std::string>(), row[2].template as<std::string>(),
-        row[3].template as<int>());
+  for (size_t i = 0; i < res.size(); ++i) {
+    books.emplace_back(domain::BookId::FromString(res[i][0].as<std::string>()),
+                       res[i][1].as<std::string>(), res[i][2].as<std::string>(),
+                       res[i][3].as<int>());
   }
 
   return books;
@@ -90,11 +89,10 @@ ORDER BY publication_year, title;
   std::vector<domain::Book> books;
   books.reserve(res.size());
 
-  for (auto row : res) {
-    books.emplace_back(
-        domain::BookId::FromString(row[0].template as<std::string>()),
-        row[1].template as<std::string>(), row[2].template as<std::string>(),
-        row[3].template as<int>());
+  for (size_t i = 0; i < res.size(); ++i) {
+    books.emplace_back(domain::BookId::FromString(res[i][0].as<std::string>()),
+                       res[i][1].as<std::string>(), res[i][2].as<std::string>(),
+                       res[i][3].as<int>());
   }
 
   return books;
