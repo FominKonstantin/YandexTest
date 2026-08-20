@@ -124,7 +124,6 @@ CREATE TABLE IF NOT EXISTS books (
 
 Database::Database(pqxx::connection connection)
     : connection_{std::move(connection)} {
-  // Таблицы создаются при первом обращении через EnsureTablesCreated()
 }
 
 }  // namespace postgres
