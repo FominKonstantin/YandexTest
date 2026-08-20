@@ -21,6 +21,7 @@
 #include "players.h"
 #include "response_helpers.h"
 #include "serializers.h"
+#include "state_manager.h"
 #include "url_utils.h"
 
 namespace http_handler {
@@ -48,13 +49,16 @@ constexpr std::string_view ALLOW = "Allow";
 class RequestHandler {
  public:
   explicit RequestHandler(
-      model::Game& game,
-      model::Players& players,  // Теперь принимаем ссылку на Players
+      model::Game& game, model::Players& players,
+      state_manager::StateManager& state_manager,    // Добавлено
+      const std::optional<std::string>& state_file,  // Добавлено
       const std::filesystem::path& static_dir,
       const std::filesystem::path& config_path, bool randomize_spawn = false,
       net::strand<net::io_context::executor_type> strand = {})
       : game_{game},
-        players_{players},  // Сохраняем ссылку
+        players_{players},
+        state_manager_{state_manager},  // Добавлено
+        state_file_{state_file},        // Добавлено
         static_dir_{static_dir},
         config_path_{config_path},
         strand_{strand},
@@ -71,12 +75,27 @@ class RequestHandler {
                                               game_.GetLostObjectsMutable());
     }
     game_.UpdateTime(delta_time);
+
+    // Сохраняем состояние после тика (для автоматического тикера)
+    SaveState();
   }
 
   void SetTickEnabled(bool enabled) { tick_enabled_ = enabled; }
 
   const net::strand<net::io_context::executor_type>& GetStrand() const {
     return strand_;
+  }
+
+  // Метод для сохранения состояния
+  void SaveState() {
+    if (state_file_.has_value()) {
+      try {
+        state_manager_.Save(game_, players_, state_file_.value());
+        std::cout << "State saved" << std::endl;
+      } catch (const std::exception& e) {
+        std::cerr << "Error saving state: " << e.what() << std::endl;
+      }
+    }
   }
 
   template <typename Body, typename Allocator, typename Send>
@@ -117,7 +136,9 @@ class RequestHandler {
 
  private:
   model::Game& game_;
-  model::Players& players_;  // Теперь это ссылка, а не объект
+  model::Players& players_;
+  state_manager::StateManager& state_manager_;  // Добавлено
+  std::optional<std::string> state_file_;       // Добавлено
   std::filesystem::path static_dir_;
   std::filesystem::path config_path_;
   boost::json::value config_json_;
@@ -200,8 +221,9 @@ class RequestHandler {
         return;
       }
       if constexpr (std::is_same_v<Body, http::string_body>) {
+        // Передаем this для сохранения состояния после тика
         api_handlers::HandleTickRequest(std::move(req), game_,
-                                        std::forward<Send>(send));
+                                        std::forward<Send>(send), this);
       } else {
         response_helpers::SendErrorResponse(
             std::forward<Send>(send), http::status::bad_request,
@@ -372,4 +394,4 @@ class RequestHandler {
 
 const std::string RequestHandler::EMPTY_JSON = "{}";
 
-}  // namespace http_handler    
+}  // namespace http_handler

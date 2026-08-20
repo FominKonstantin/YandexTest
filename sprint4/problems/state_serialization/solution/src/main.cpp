@@ -199,36 +199,17 @@ int main(int argc, const char* argv[]) {
 
     auto api_strand = net::make_strand(ioc);
 
-    // Передаем players по ссылке в RequestHandler
+    // Передаем state_manager и state_file в RequestHandler
     auto handler = std::make_shared<http_handler::RequestHandler>(
-        game, players, args.www_root, args.config_file, args.randomize_spawn,
-        api_strand);
+        game, players, state_manager, args.state_file,  // Новые параметры
+        args.www_root, args.config_file, args.randomize_spawn, api_strand);
 
     std::shared_ptr<Ticker> ticker;
     if (args.tick_period_ms.has_value()) {
       handler->SetTickEnabled(true);
       ticker = std::make_shared<Ticker>(
           api_strand, std::chrono::milliseconds(args.tick_period_ms.value()),
-          [handler, &game, &players, &state_manager,
-           &args](std::chrono::milliseconds delta) {
-            // Обновляем игровое время
-            game.AddGameTime(delta);
-
-            // Выполняем тик игры
-            handler->Tick(delta);
-
-            // ===== АВТОСОХРАНЕНИЕ ПОСЛЕ КАЖДОГО ТИКА =====
-            // Это гарантирует сохранение даже при SIGKILL
-            if (args.state_file.has_value()) {
-              try {
-                state_manager.Save(game, players, args.state_file.value());
-                std::cout << "State saved after tick" << std::endl;
-              } catch (const std::exception& e) {
-                std::cerr << "Error saving state after tick: " << e.what()
-                          << std::endl;
-              }
-            }
-          });
+          [handler](std::chrono::milliseconds delta) { handler->Tick(delta); });
       ticker->Start();
       std::cout << "Ticker started with period " << args.tick_period_ms.value()
                 << " ms" << std::endl;
