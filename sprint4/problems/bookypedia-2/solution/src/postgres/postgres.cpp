@@ -40,15 +40,6 @@ ORDER BY name;
 
 void AuthorRepositoryImpl::DeleteAuthor(const std::string& author_id) {
   pqxx::work work{connection_};
-  auto res = work.exec_params(R"(
-SELECT id FROM authors WHERE id = $1;
-)"_zv,
-                              author_id);
-
-  if (res.empty()) {
-    throw std::runtime_error("Author not found");
-  }
-
   work.exec_params(R"(
 DELETE FROM authors WHERE id = $1;
 )"_zv,
@@ -59,15 +50,6 @@ DELETE FROM authors WHERE id = $1;
 void AuthorRepositoryImpl::UpdateAuthor(const std::string& author_id,
                                         const std::string& new_name) {
   pqxx::work work{connection_};
-  auto res = work.exec_params(R"(
-SELECT id FROM authors WHERE id = $1;
-)"_zv,
-                              author_id);
-
-  if (res.empty()) {
-    throw std::runtime_error("Author not found");
-  }
-
   work.exec_params(R"(
 UPDATE authors SET name = $2 WHERE id = $1;
 )"_zv,
@@ -137,15 +119,6 @@ ORDER BY publication_year, title;
 
 void BookRepositoryImpl::DeleteBook(const std::string& book_id) {
   pqxx::work work{connection_};
-  auto res = work.exec_params(R"(
-SELECT id FROM books WHERE id = $1;
-)"_zv,
-                              book_id);
-
-  if (res.empty()) {
-    throw std::runtime_error("Book not found");
-  }
-
   work.exec_params(R"(
 DELETE FROM books WHERE id = $1;
 )"_zv,
