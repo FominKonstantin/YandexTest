@@ -5,6 +5,7 @@
 #include <cassert>
 #include <iostream>
 #include <sstream>
+#include <unordered_map>
 
 #include "../app/use_cases.h"
 #include "../menu/menu.h"
@@ -290,6 +291,8 @@ bool View::DeleteBook(std::istream& cmd_input) const {
 
     if (book.has_value()) {
       use_cases_.DeleteBook(book->id);
+    } else {
+      output_ << "Failed to delete book"sv << std::endl;
     }
   } catch (const std::exception&) {
     output_ << "Failed to delete book"sv << std::endl;
@@ -331,7 +334,11 @@ bool View::EditBook(std::istream& cmd_input) const {
     boost::algorithm::trim(year_str);
     int new_year = book->publication_year;
     if (!year_str.empty()) {
-      new_year = std::stoi(year_str);
+      try {
+        new_year = std::stoi(year_str);
+      } catch (...) {
+        // Если не число, оставляем старый год
+      }
     }
 
     std::string tags_str;
@@ -346,8 +353,11 @@ bool View::EditBook(std::istream& cmd_input) const {
     output_ << "Enter tags" << tags_str << ":" << std::endl;
     std::string tags_input;
     std::getline(input_, tags_input);
-    auto new_tags = ParseTags(tags_input);
-    if (new_tags.empty() && !book->tags.empty()) {
+    std::vector<std::string> new_tags;
+    if (!tags_input.empty()) {
+      new_tags = ParseTags(tags_input);
+    } else {
+      // Если пользователь не ввел теги, сохраняем старые
       new_tags = book->tags;
     }
 
@@ -402,13 +412,11 @@ std::optional<std::string> View::SelectAuthor() const {
   try {
     author_idx = std::stoi(str);
   } catch (std::exception const&) {
-    output_ << "Failed to add book"sv << std::endl;
     return std::nullopt;
   }
 
   --author_idx;
   if (author_idx < 0 or author_idx >= authors.size()) {
-    output_ << "Failed to add book"sv << std::endl;
     return std::nullopt;
   }
 
@@ -527,6 +535,8 @@ std::vector<std::string> View::ParseTags(const std::string& tags_input) const {
     }
   }
 
+  // Сортируем теги в алфавитном порядке
+  std::sort(result.begin(), result.end());
   return result;
 }
 
