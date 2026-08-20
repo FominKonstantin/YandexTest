@@ -8,15 +8,13 @@ using json = nlohmann::json;
 using namespace std::literals;
 using pqxx::operator"" _zv;
 
-constexpr auto TAG_CREATE_TABLE = "create_table"_zv;
-constexpr auto TAG_ADD_BOOK = "add_book"_zv;
-constexpr auto TAG_ALL_BOOKS = "all_books"_zv;
-
 class BookManager {
  public:
   explicit BookManager(const std::string& conn_string) : conn_(conn_string) {
-    prepare_statements();
+    // Сначала создаём таблицу
     create_table_if_not_exists();
+    // Затем подготавливаем запросы
+    prepare_statements();
   }
 
   void process_commands() {
@@ -44,9 +42,10 @@ class BookManager {
  private:
   pqxx::connection conn_;
 
-  void prepare_statements() {
-    conn_.prepare(TAG_CREATE_TABLE,
-                  R"(
+  void create_table_if_not_exists() {
+    pqxx::work w(conn_);
+    w.exec(
+        R"(
                 CREATE TABLE IF NOT EXISTS books (
                     id SERIAL PRIMARY KEY,
                     title varchar(100) NOT NULL,
@@ -55,23 +54,22 @@ class BookManager {
                     ISBN char(13) UNIQUE
                 )
             )"_zv);
+    w.commit();
+  }
 
+  void prepare_statements() {
+    // Подготовка запроса для добавления книги
     conn_.prepare(
-        TAG_ADD_BOOK,
+        "add_book",
         "INSERT INTO books (title, author, year, ISBN) VALUES ($1, $2, $3, $4)"_zv);
 
-    conn_.prepare(TAG_ALL_BOOKS,
+    // Подготовка запроса для получения всех книг
+    conn_.prepare("all_books",
                   R"(
                 SELECT id, title, author, year, ISBN 
                 FROM books 
                 ORDER BY year DESC, title ASC, author ASC, ISBN ASC
             )"_zv);
-  }
-
-  void create_table_if_not_exists() {
-    pqxx::work w(conn_);
-    w.exec_prepared(TAG_CREATE_TABLE);
-    w.commit();
   }
 
   void handle_add_book(const json& payload) {
@@ -82,11 +80,13 @@ class BookManager {
       std::string author = payload["author"];
       int year = payload["year"];
 
+      // Обработка ISBN (может быть null)
       if (payload.contains("ISBN") && !payload["ISBN"].is_null()) {
         std::string isbn = payload["ISBN"];
-        w.exec_prepared(TAG_ADD_BOOK, title, author, year, isbn);
+        w.exec_prepared("add_book", title, author, year, isbn);
       } else {
-        w.exec_prepared(TAG_ADD_BOOK, title, author, year, nullptr);
+        // ISBN - null
+        w.exec_prepared("add_book", title, author, year, nullptr);
       }
 
       w.commit();
@@ -95,6 +95,7 @@ class BookManager {
       std::cout << response.dump() << std::endl;
 
     } catch (const pqxx::sql_error& e) {
+      // Ошибка при добавлении дублирующегося ISBN
       json response = {{"result", false}};
       std::cout << response.dump() << std::endl;
     } catch (const std::exception& e) {
@@ -108,7 +109,7 @@ class BookManager {
 
     json books_array = json::array();
 
-    auto result = r.exec_prepared(TAG_ALL_BOOKS);
+    auto result = r.exec_prepared("all_books");
 
     for (const auto& row : result) {
       json book;
@@ -117,6 +118,7 @@ class BookManager {
       book["author"] = row["author"].as<std::string>();
       book["year"] = row["year"].as<int>();
 
+      // Обработка NULL для ISBN
       if (row["ISBN"].is_null()) {
         book["ISBN"] = nullptr;
       } else {
