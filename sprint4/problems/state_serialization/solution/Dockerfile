@@ -22,6 +22,8 @@ RUN cd /app/build && \
 FROM ubuntu:22.04
 RUN apt update && apt install -y --no-install-recommends libstdc++6 && rm -rf /var/lib/apt/lists/*
 
+RUN mkdir -p /tmp/volume
+
 COPY --from=build /app/build/bin/game_server /app/game_server
 
 COPY ./static /app/static
