@@ -13,7 +13,7 @@ class AuthorRepositoryImpl : public domain::AuthorRepository {
       : connection_{connection} {}
 
   void Save(const domain::Author& author) override;
-  std::vector<domain::Author> GetAuthors() const override;  // ДОБАВЛЕНО
+  std::vector<domain::Author> GetAuthors() const override;
 
  private:
   pqxx::connection& connection_;

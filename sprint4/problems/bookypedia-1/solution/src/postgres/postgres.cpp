@@ -98,8 +98,9 @@ ORDER BY publication_year, title;
   return books;
 }
 
-Database::Database(pqxx::connection connection)
-    : connection_{std::move(connection)} {
+void Database::EnsureTablesCreated() {
+  if (tables_created_) return;
+
   pqxx::work work{connection_};
   work.exec(R"(
 CREATE TABLE IF NOT EXISTS authors (
@@ -118,6 +119,12 @@ CREATE TABLE IF NOT EXISTS books (
 )"_zv);
 
   work.commit();
+  tables_created_ = true;
+}
+
+Database::Database(pqxx::connection connection)
+    : connection_{std::move(connection)} {
+  // Таблицы создаются при первом обращении через EnsureTablesCreated()
 }
 
 }  // namespace postgres
