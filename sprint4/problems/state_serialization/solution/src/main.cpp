@@ -217,27 +217,15 @@ int main(int argc, const char* argv[]) {
             // Выполняем тик игры
             handler->Tick(delta);
 
-            // Автоматическое сохранение, если включено
-            if (args.state_file.has_value() &&
-                args.save_state_period_ms.has_value()) {
-              auto game_time = game.GetGameTime();
-              auto save_period =
-                  std::chrono::milliseconds(args.save_state_period_ms.value());
-
-              static std::chrono::milliseconds last_save_game_time =
-                  std::chrono::milliseconds::zero();
-
-              if (state_manager.ShouldSave(game_time, save_period,
-                                           last_save_game_time)) {
-                try {
-                  state_manager.Save(game, players, args.state_file.value());
-                  last_save_game_time = game_time;
-                  std::cout << "State auto-saved at game time "
-                            << game_time.count() << " ms" << std::endl;
-                } catch (const std::exception& e) {
-                  std::cerr << "Error auto-saving state: " << e.what()
-                            << std::endl;
-                }
+            // ===== АВТОСОХРАНЕНИЕ ПОСЛЕ КАЖДОГО ТИКА =====
+            // Это гарантирует сохранение даже при SIGKILL
+            if (args.state_file.has_value()) {
+              try {
+                state_manager.Save(game, players, args.state_file.value());
+                std::cout << "State saved after tick" << std::endl;
+              } catch (const std::exception& e) {
+                std::cerr << "Error saving state after tick: " << e.what()
+                          << std::endl;
               }
             }
           });
@@ -246,40 +234,30 @@ int main(int argc, const char* argv[]) {
                 << " ms" << std::endl;
     }
 
-    // Используем флаг для отслеживания завершения
-    std::atomic<bool> shutdown_complete{false};
-
     net::signal_set signals(ioc, SIGINT, SIGTERM);
-    signals.async_wait(
-        [&ioc, ticker, &game, &players, &state_manager, &args,
-         &shutdown_complete](const boost::system::error_code&, int) {
-          logging_handler::LogServerExit(0);
-          std::cout << "Shutting down server..." << std::endl;
+    signals.async_wait([&ioc, ticker, &game, &players, &state_manager, &args](
+                           const boost::system::error_code&, int) {
+      logging_handler::LogServerExit(0);
+      std::cout << "Shutting down server..." << std::endl;
 
-          if (ticker) {
-            ticker->Stop();
-          }
+      if (ticker) {
+        ticker->Stop();
+      }
 
-          // Сохраняем состояние при завершении, если указан файл состояния
-          if (args.state_file.has_value()) {
-            try {
-              state_manager.Save(game, players, args.state_file.value());
-              std::cout << "State saved to " << args.state_file.value()
-                        << std::endl;
-            } catch (const std::exception& e) {
-              std::cerr << "Error saving state on shutdown: " << e.what()
-                        << std::endl;
-            }
-          }
+      // Сохраняем состояние при завершении, если указан файл состояния
+      if (args.state_file.has_value()) {
+        try {
+          state_manager.Save(game, players, args.state_file.value());
+          std::cout << "State saved on shutdown to " << args.state_file.value()
+                    << std::endl;
+        } catch (const std::exception& e) {
+          std::cerr << "Error saving state on shutdown: " << e.what()
+                    << std::endl;
+        }
+      }
 
-          // Отмечаем, что завершение выполнено
-          shutdown_complete = true;
-
-          // Даем время на завершение операций ввода-вывода
-          std::this_thread::sleep_for(std::chrono::milliseconds(500));
-
-          ioc.stop();
-        });
+      ioc.stop();
+    });
 
     const std::string address = "0.0.0.0";
     const unsigned short port = 8080;
@@ -301,22 +279,6 @@ int main(int argc, const char* argv[]) {
         });
 
     RunWorkers(std::max(1u, num_threads), [&ioc] { ioc.run(); });
-
-    // Дожидаемся завершения сохранения
-    while (!shutdown_complete) {
-      std::this_thread::sleep_for(std::chrono::milliseconds(10));
-    }
-
-    // ===== ФИНАЛЬНОЕ СОХРАНЕНИЕ (гарантирует сохранение при SIGKILL) =====
-    if (args.state_file.has_value()) {
-      try {
-        state_manager.Save(game, players, args.state_file.value());
-        std::cout << "Final state saved to " << args.state_file.value()
-                  << std::endl;
-      } catch (const std::exception& e) {
-        std::cerr << "Error saving final state: " << e.what() << std::endl;
-      }
-    }
 
     std::cout << "Server stopped." << std::endl;
 
