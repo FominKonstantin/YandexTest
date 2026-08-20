@@ -114,7 +114,6 @@ GameState DeserializeGameState(const boost::json::value& json) {
   if (obj.contains("map_dogs")) {
     const auto& maps_dogs_obj = obj.at("map_dogs").as_object();
     for (const auto& [map_id_view, dogs_val] : maps_dogs_obj) {
-      // Преобразуем boost::string_view в std::string
       std::string map_id = std::string(map_id_view.data(), map_id_view.size());
 
       const auto& dogs_arr = dogs_val.as_array();
@@ -230,8 +229,17 @@ void RestoreGameState(model::Game& game, model::Players& players,
 
   game.SetNextLootId(state.next_loot_id);
 
-  // Восстанавливаем собак на картах
+  // Восстанавливаем игровое время
+  game.SetGameTime(state.game_time_ms);
+
+  // ====== ВАЖНО: Сначала очищаем все карты и игроков ======
   game.ClearDogs();
+  players.ClearPlayers();
+
+  // ====== Восстанавливаем собак на картах ======
+  // Сохраняем созданных собак для связи с игроками
+  std::unordered_map<int, model::Dog*> restored_dogs;
+
   for (auto& map : game.GetMaps()) {
     auto& dogs = map.GetDogsMutable();
     dogs.clear();
@@ -259,25 +267,24 @@ void RestoreGameState(model::Game& game, model::Players& players,
         for (const auto& item : dog_state.bag) {
           bag.push_back(item);
         }
+
+        // Сохраняем указатель на собаку по её ID
+        int dog_id_value = *dog.GetId();
         dogs.push_back(std::move(dog));
+
+        // Получаем указатель на только что добавленную собаку
+        // (собака теперь в векторе, берем последнюю)
+        restored_dogs[dog_id_value] = &dogs.back();
       }
     }
   }
 
-  // ====== ВАЖНО: Восстанавливаем игроков с токенами ======
-  // Сначала очищаем существующих игроков
-  players.ClearPlayers();
-
-  // Затем восстанавливаем каждого игрока с его токеном
+  // ====== Восстанавливаем игроков с привязкой к собакам ======
   for (const auto& player_state : state.players) {
     players.RestorePlayerWithToken(
-        player_state.token,                   // Токен
-        player_state.player_id,               // ID игрока
-        player_state.name,                    // Имя
-        model::Map::Id(player_state.map_id),  // ID карты
-        player_state.dog_id);                 // ID собаки
+        player_state.token, player_state.player_id, player_state.name,
+        model::Map::Id(player_state.map_id), player_state.dog_id);
   }
-  // =======================================================
 }
 
 }  // namespace state_serialization
