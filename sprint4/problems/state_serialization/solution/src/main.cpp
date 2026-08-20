@@ -307,6 +307,17 @@ int main(int argc, const char* argv[]) {
       std::this_thread::sleep_for(std::chrono::milliseconds(10));
     }
 
+    // ===== ФИНАЛЬНОЕ СОХРАНЕНИЕ (гарантирует сохранение при SIGKILL) =====
+    if (args.state_file.has_value()) {
+      try {
+        state_manager.Save(game, players, args.state_file.value());
+        std::cout << "Final state saved to " << args.state_file.value()
+                  << std::endl;
+      } catch (const std::exception& e) {
+        std::cerr << "Error saving final state: " << e.what() << std::endl;
+      }
+    }
+
     std::cout << "Server stopped." << std::endl;
 
   } catch (const std::exception& ex) {
