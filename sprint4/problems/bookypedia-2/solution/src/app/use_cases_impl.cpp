@@ -44,6 +44,13 @@ void UseCasesImpl::DeleteBook(const std::string& book_id) {
   books_.DeleteBook(book_id);
 }
 
+void UseCasesImpl::UpdateBook(const std::string& book_id,
+                              const std::string& title, int publication_year,
+                              const std::vector<std::string>& tags) {
+  books_.UpdateBook(book_id, title, publication_year);
+  tags_.SaveTags(book_id, tags);
+}
+
 std::vector<std::string> UseCasesImpl::GetBookTags(
     const std::string& book_id) const {
   return tags_.GetBookTags(book_id);

@@ -13,6 +13,7 @@ class DummyBookRepository : public domain::BookRepository {
     return {};
   }
   void DeleteBook(const std::string&) override {}
+  void UpdateBook(const std::string&, const std::string&, int) override {}
 };
 
 class DummyTagRepository : public domain::TagRepository {
@@ -45,6 +46,9 @@ class UseCasesImpl : public UseCases {
   void UpdateAuthor(const std::string& author_id,
                     const std::string& new_name) override;
   void DeleteBook(const std::string& book_id) override;
+  void UpdateBook(const std::string& book_id, const std::string& title,
+                  int publication_year,
+                  const std::vector<std::string>& tags) override;
   std::vector<std::string> GetBookTags(
       const std::string& book_id) const override;
 

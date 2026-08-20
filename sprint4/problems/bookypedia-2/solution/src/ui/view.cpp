@@ -228,15 +228,6 @@ bool View::EditAuthor(std::istream& cmd_input) const {
       author_id = id.value();
     }
 
-    auto authors = use_cases_.GetAuthors();
-    std::string current_name;
-    for (const auto& author : authors) {
-      if (author.GetId().ToString() == author_id) {
-        current_name = author.GetName();
-        break;
-      }
-    }
-
     output_ << "Enter new name:" << std::endl;
     std::string new_name;
     std::getline(input_, new_name);
@@ -282,17 +273,81 @@ bool View::DeleteBook(std::istream& cmd_input) const {
     std::getline(cmd_input, title);
     boost::algorithm::trim(title);
 
-    std::optional<detail::BookInfo> book;
     if (title.empty()) {
-      book = SelectBook();
-    } else {
-      book = SelectBookByTitle(title);
-    }
+      auto books = GetBooks();
+      if (books.empty()) {
+        output_ << "Failed to delete book"sv << std::endl;
+        return true;
+      }
+      output_ << "Select book:" << std::endl;
+      PrintVector(output_, books);
+      output_ << "Enter the book # or empty line to cancel:" << std::endl;
 
-    if (book.has_value()) {
-      use_cases_.DeleteBook(book->id);
+      std::string str;
+      if (!std::getline(input_, str) || str.empty()) {
+        output_ << "Failed to delete book"sv << std::endl;
+        return true;
+      }
+
+      int idx;
+      try {
+        idx = std::stoi(str);
+      } catch (std::exception const&) {
+        output_ << "Failed to delete book"sv << std::endl;
+        return true;
+      }
+
+      --idx;
+      if (idx < 0 || idx >= books.size()) {
+        output_ << "Failed to delete book"sv << std::endl;
+        return true;
+      }
+
+      use_cases_.DeleteBook(books[idx].id);
     } else {
-      output_ << "Failed to delete book"sv << std::endl;
+      auto all_books = GetBooks();
+      std::vector<detail::BookInfo> matches;
+      for (const auto& b : all_books) {
+        if (b.title == title) {
+          matches.push_back(b);
+        }
+      }
+
+      if (matches.empty()) {
+        output_ << "Failed to delete book"sv << std::endl;
+        return true;
+      }
+
+      if (matches.size() == 1) {
+        use_cases_.DeleteBook(matches[0].id);
+      } else {
+        output_ << "Multiple books found with title '" << title
+                << "':" << std::endl;
+        PrintVector(output_, matches);
+        output_ << "Enter the book # or empty line to cancel:" << std::endl;
+
+        std::string str;
+        if (!std::getline(input_, str) || str.empty()) {
+          output_ << "Failed to delete book"sv << std::endl;
+          return true;
+        }
+
+        int idx;
+        try {
+          idx = std::stoi(str);
+        } catch (std::exception const&) {
+          output_ << "Failed to delete book"sv << std::endl;
+          return true;
+        }
+
+        --idx;
+        if (idx < 0 || idx >= matches.size()) {
+          output_ << "Failed to delete book"sv << std::endl;
+          return true;
+        }
+
+        use_cases_.DeleteBook(matches[idx].id);
+      }
     }
   } catch (const std::exception&) {
     output_ << "Failed to delete book"sv << std::endl;
@@ -341,28 +396,30 @@ bool View::EditBook(std::istream& cmd_input) const {
       }
     }
 
-    std::string tags_str;
+    std::string tags_prompt = "Enter tags";
     if (!book->tags.empty()) {
-      tags_str = " (current tags: ";
+      tags_prompt += " (current tags: ";
       for (size_t i = 0; i < book->tags.size(); ++i) {
-        if (i > 0) tags_str += ", ";
-        tags_str += book->tags[i];
+        if (i > 0) tags_prompt += ", ";
+        tags_prompt += book->tags[i];
       }
-      tags_str += ")";
+      tags_prompt += ")";
     }
-    output_ << "Enter tags" << tags_str << ":" << std::endl;
+    tags_prompt += ":";
+    output_ << tags_prompt << std::endl;
+
     std::string tags_input;
     std::getline(input_, tags_input);
+    boost::algorithm::trim(tags_input);
+
     std::vector<std::string> new_tags;
     if (!tags_input.empty()) {
       new_tags = ParseTags(tags_input);
     } else {
-      // Если пользователь не ввел теги, сохраняем старые
       new_tags = book->tags;
     }
 
-    use_cases_.DeleteBook(book->id);
-    use_cases_.AddBook(book->author_id, new_title, new_year, new_tags);
+    use_cases_.UpdateBook(book->id, new_title, new_year, new_tags);
 
   } catch (const std::exception&) {
     output_ << "Failed to edit book"sv << std::endl;
@@ -482,6 +539,7 @@ std::optional<detail::BookInfo> View::SelectBookByTitle(
     return matches[0];
   }
 
+  output_ << "Multiple books found with title '" << title << "':" << std::endl;
   PrintVector(output_, matches);
   output_ << "Enter the book # or empty line to cancel:" << std::endl;
 
@@ -535,7 +593,6 @@ std::vector<std::string> View::ParseTags(const std::string& tags_input) const {
     }
   }
 
-  // Сортируем теги в алфавитном порядке
   std::sort(result.begin(), result.end());
   return result;
 }

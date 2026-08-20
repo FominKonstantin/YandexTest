@@ -22,6 +22,9 @@ class UseCases {
   virtual void UpdateAuthor(const std::string& author_id,
                             const std::string& new_name) = 0;
   virtual void DeleteBook(const std::string& book_id) = 0;
+  virtual void UpdateBook(const std::string& book_id, const std::string& title,
+                          int publication_year,
+                          const std::vector<std::string>& tags) = 0;
   virtual std::vector<std::string> GetBookTags(
       const std::string& book_id) const = 0;
 

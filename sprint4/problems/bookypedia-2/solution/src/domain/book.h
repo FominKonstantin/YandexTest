@@ -43,6 +43,8 @@ class BookRepository {
   virtual std::vector<Book> GetAuthorBooks(
       const std::string& author_id) const = 0;
   virtual void DeleteBook(const std::string& book_id) = 0;
+  virtual void UpdateBook(const std::string& book_id, const std::string& title,
+                          int publication_year) = 0;
 
  protected:
   ~BookRepository() = default;

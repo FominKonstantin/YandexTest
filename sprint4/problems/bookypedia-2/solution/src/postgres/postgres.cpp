@@ -76,9 +76,10 @@ ON CONFLICT (id) DO UPDATE SET
 std::vector<domain::Book> BookRepositoryImpl::GetBooks() const {
   pqxx::read_transaction r{connection_};
   auto res = r.exec(R"(
-SELECT id, author_id, title, publication_year 
-FROM books 
-ORDER BY title, author_id, publication_year;
+SELECT b.id, b.author_id, b.title, b.publication_year 
+FROM books b
+JOIN authors a ON b.author_id = a.id
+ORDER BY b.title, a.name, b.publication_year;
 )"_zv);
 
   std::vector<domain::Book> books;
@@ -123,6 +124,17 @@ void BookRepositoryImpl::DeleteBook(const std::string& book_id) {
 DELETE FROM books WHERE id = $1;
 )"_zv,
                    book_id);
+  work.commit();
+}
+
+void BookRepositoryImpl::UpdateBook(const std::string& book_id,
+                                    const std::string& title,
+                                    int publication_year) {
+  pqxx::work work{connection_};
+  work.exec_params(R"(
+UPDATE books SET title = $2, publication_year = $3 WHERE id = $1;
+)"_zv,
+                   book_id, title, publication_year);
   work.commit();
 }
 

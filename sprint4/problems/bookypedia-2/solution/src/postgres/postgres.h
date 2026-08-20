@@ -33,6 +33,8 @@ class BookRepositoryImpl : public domain::BookRepository {
   std::vector<domain::Book> GetAuthorBooks(
       const std::string& author_id) const override;
   void DeleteBook(const std::string& book_id) override;
+  void UpdateBook(const std::string& book_id, const std::string& title,
+                  int publication_year) override;
 
  private:
   pqxx::connection& connection_;
