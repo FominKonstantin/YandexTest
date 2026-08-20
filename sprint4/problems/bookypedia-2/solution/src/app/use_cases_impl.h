@@ -1,5 +1,6 @@
 #pragma once
 #include "../domain/author_fwd.h"
+#include "../domain/tag.h"
 #include "use_cases.h"
 
 namespace app {
