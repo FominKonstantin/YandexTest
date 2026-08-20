@@ -246,33 +246,40 @@ int main(int argc, const char* argv[]) {
                 << " ms" << std::endl;
     }
 
+    // Используем флаг для отслеживания завершения
+    std::atomic<bool> shutdown_complete{false};
+
     net::signal_set signals(ioc, SIGINT, SIGTERM);
-    signals.async_wait([&ioc, ticker, &game, &players, &state_manager, &args](
-                           const boost::system::error_code&, int) {
-      logging_handler::LogServerExit(0);
-      std::cout << "Shutting down server..." << std::endl;
+    signals.async_wait(
+        [&ioc, ticker, &game, &players, &state_manager, &args,
+         &shutdown_complete](const boost::system::error_code&, int) {
+          logging_handler::LogServerExit(0);
+          std::cout << "Shutting down server..." << std::endl;
 
-      if (ticker) {
-        ticker->Stop();
-      }
+          if (ticker) {
+            ticker->Stop();
+          }
 
-      // Сохраняем состояние при завершении, если указан файл состояния
-      if (args.state_file.has_value()) {
-        try {
-          state_manager.Save(game, players, args.state_file.value());
-          std::cout << "State saved to " << args.state_file.value()
-                    << std::endl;
-        } catch (const std::exception& e) {
-          std::cerr << "Error saving state on shutdown: " << e.what()
-                    << std::endl;
-        }
-      }
+          // Сохраняем состояние при завершении, если указан файл состояния
+          if (args.state_file.has_value()) {
+            try {
+              state_manager.Save(game, players, args.state_file.value());
+              std::cout << "State saved to " << args.state_file.value()
+                        << std::endl;
+            } catch (const std::exception& e) {
+              std::cerr << "Error saving state on shutdown: " << e.what()
+                        << std::endl;
+            }
+          }
 
-      // Даем время на завершение операций ввода-вывода
-      std::this_thread::sleep_for(std::chrono::milliseconds(100));
+          // Отмечаем, что завершение выполнено
+          shutdown_complete = true;
 
-      ioc.stop();
-    });
+          // Даем время на завершение операций ввода-вывода
+          std::this_thread::sleep_for(std::chrono::milliseconds(500));
+
+          ioc.stop();
+        });
 
     const std::string address = "0.0.0.0";
     const unsigned short port = 8080;
@@ -294,6 +301,11 @@ int main(int argc, const char* argv[]) {
         });
 
     RunWorkers(std::max(1u, num_threads), [&ioc] { ioc.run(); });
+
+    // Дожидаемся завершения сохранения
+    while (!shutdown_complete) {
+      std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    }
 
     std::cout << "Server stopped." << std::endl;
 
