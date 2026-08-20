@@ -1,6 +1,7 @@
 #include "state_serialization.h"
 
 #include <boost/json.hpp>
+#include <iostream>
 #include <sstream>
 
 namespace state_serialization {
@@ -204,11 +205,17 @@ GameState ToGameState(const model::Game& game, const model::Players& players) {
     auto token_opt = players.GetTokenByPlayerId(player->GetId());
     if (token_opt) {
       player_state.token = **token_opt;
+    } else {
+      std::cerr << "Warning: Token not found for player " << *player->GetId()
+                << std::endl;
     }
     state.players.push_back(player_state);
   }
 
   state.next_loot_id = game.GetNextLootId();
+
+  std::cout << "ToGameState: saved " << state.players.size() << " players"
+            << std::endl;
 
   return state;
 }
@@ -237,9 +244,6 @@ void RestoreGameState(model::Game& game, model::Players& players,
   players.ClearPlayers();
 
   // ====== Восстанавливаем собак на картах ======
-  // Сохраняем созданных собак для связи с игроками
-  std::unordered_map<int, model::Dog*> restored_dogs;
-
   for (auto& map : game.GetMaps()) {
     auto& dogs = map.GetDogsMutable();
     dogs.clear();
@@ -267,24 +271,25 @@ void RestoreGameState(model::Game& game, model::Players& players,
         for (const auto& item : dog_state.bag) {
           bag.push_back(item);
         }
-
-        // Сохраняем указатель на собаку по её ID
-        int dog_id_value = *dog.GetId();
         dogs.push_back(std::move(dog));
-
-        // Получаем указатель на только что добавленную собаку
-        // (собака теперь в векторе, берем последнюю)
-        restored_dogs[dog_id_value] = &dogs.back();
       }
     }
   }
 
-  // ====== Восстанавливаем игроков с привязкой к собакам ======
+  // ====== Восстанавливаем игроков с токенами ======
   for (const auto& player_state : state.players) {
-    players.RestorePlayerWithToken(
-        player_state.token, player_state.player_id, player_state.name,
-        model::Map::Id(player_state.map_id), player_state.dog_id);
+    try {
+      players.RestorePlayerWithToken(
+          player_state.token, player_state.player_id, player_state.name,
+          model::Map::Id(player_state.map_id), player_state.dog_id);
+    } catch (const std::exception& e) {
+      std::cerr << "Error restoring player " << player_state.player_id << ": "
+                << e.what() << std::endl;
+    }
   }
+
+  std::cout << "RestoreGameState: restored " << state.players.size()
+            << " players" << std::endl;
 }
 
 }  // namespace state_serialization

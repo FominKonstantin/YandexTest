@@ -39,9 +39,20 @@ class Players {
                               int dog_id) {
     Token token(token_str);
     PlayerId id(player_id);
+
+    // Проверяем, что карта существует
+    Map* map = game_->FindMap(map_id);
+    if (!map) {
+      throw std::runtime_error("Map not found during restore");
+    }
+
+    // Проверяем, что собака с таким ID существует на карте
+    Dog* dog = map->FindDog(Dog::Id(dog_id));
+    if (!dog) {
+      throw std::runtime_error("Dog not found during restore");
+    }
+
     auto player = std::make_shared<Player>(id, name, map_id, Dog::Id(dog_id));
-    // Используем emplace вместо operator[] чтобы избежать конструктора по
-    // умолчанию
     players_by_id_.emplace(id, player);
     token_to_player_.emplace(token, id);
   }

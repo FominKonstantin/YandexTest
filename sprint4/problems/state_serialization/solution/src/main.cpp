@@ -173,7 +173,7 @@ int main(int argc, const char* argv[]) {
     // Инициализируем StateManager
     state_manager::StateManager state_manager;
 
-    // Создаем Players ДО загрузки состояния (исправление пункта 3)
+    // Создаем Players ДО загрузки состояния
     model::Players players(&game, args.randomize_spawn);
     bool state_loaded = false;
 
@@ -199,7 +199,7 @@ int main(int argc, const char* argv[]) {
 
     auto api_strand = net::make_strand(ioc);
 
-    // Передаем players по ссылке в RequestHandler (исправление пункта 2)
+    // Передаем players по ссылке в RequestHandler
     auto handler = std::make_shared<http_handler::RequestHandler>(
         game, players, args.www_root, args.config_file, args.randomize_spawn,
         api_strand);
@@ -214,7 +214,7 @@ int main(int argc, const char* argv[]) {
             // Обновляем игровое время
             game.AddGameTime(delta);
 
-            // Выполняем тик игры (исправление - раскомментировали)
+            // Выполняем тик игры
             handler->Tick(delta);
 
             // Автоматическое сохранение, если включено
@@ -267,6 +267,9 @@ int main(int argc, const char* argv[]) {
                     << std::endl;
         }
       }
+
+      // Даем время на завершение операций ввода-вывода
+      std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
       ioc.stop();
     });
