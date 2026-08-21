@@ -12,8 +12,49 @@ struct MockAuthorRepository : domain::AuthorRepository {
     saved_authors.emplace_back(author);
   }
 
-  // Добавить этот метод
-  std::vector<domain::Author> GetAuthors() const override { return {}; }
+  std::vector<domain::Author> GetAuthors() const override {
+    return saved_authors;
+  }
+
+  std::optional<domain::Author> GetAuthorByName(
+      const std::string& name) const override {
+    for (const auto& author : saved_authors) {
+      if (author.GetName() == name) {
+        return author;
+      }
+    }
+    return std::nullopt;
+  }
+
+  bool DeleteAuthor(const std::string& author_id) override {
+    for (auto it = saved_authors.begin(); it != saved_authors.end(); ++it) {
+      if (it->GetId().ToString() == author_id) {
+        saved_authors.erase(it);
+        return true;
+      }
+    }
+    return false;
+  }
+
+  bool UpdateAuthor(const std::string& author_id,
+                    const std::string& new_name) override {
+    for (auto& author : saved_authors) {
+      if (author.GetId().ToString() == author_id) {
+        // Создаем нового автора с обновленным именем
+        // Так как Author неизменяемый, заменяем его
+        saved_authors.erase(
+            std::remove_if(saved_authors.begin(), saved_authors.end(),
+                           [&author_id](const domain::Author& a) {
+                             return a.GetId().ToString() == author_id;
+                           }),
+            saved_authors.end());
+        saved_authors.emplace_back(domain::AuthorId::FromString(author_id),
+                                   new_name);
+        return true;
+      }
+    }
+    return false;
+  }
 };
 
 struct Fixture {
