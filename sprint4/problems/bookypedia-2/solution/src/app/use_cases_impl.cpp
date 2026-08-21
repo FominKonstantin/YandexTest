@@ -101,7 +101,9 @@ bool UseCasesImpl::EditBook(const std::string& book_id,
   bool result = books_.UpdateBook(updated_book);
   if (result) {
     book_tags_.DeleteTagsForBook(book_id);
-    book_tags_.SaveTags(book_id, tags);
+    if (!tags.empty()) {
+      book_tags_.SaveTags(book_id, tags);
+    }
   }
   return result;
 }

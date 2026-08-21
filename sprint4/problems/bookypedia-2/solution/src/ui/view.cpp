@@ -266,7 +266,7 @@ bool View::EditBook(std::istream& cmd_input) const {
         auto selected = SelectBookFromList(
             books, "Enter the book # or empty line to cancel:");
         if (!selected.has_value()) {
-          return true;  // Пользователь отменил выбор
+          return true;
         }
         book_id = *selected;
       } else {
@@ -282,14 +282,9 @@ bool View::EditBook(std::istream& cmd_input) const {
       auto selected = SelectBookFromList(
           books, "Enter the book # or empty line to cancel:");
       if (!selected.has_value()) {
-        return true;  // Пользователь отменил выбор
+        return true;
       }
       book_id = *selected;
-    }
-
-    // Если пользователь отменил выбор
-    if (book_id.empty()) {
-      return true;
     }
 
     auto book_details = use_cases_.GetBookWithDetails(book_id);
@@ -458,8 +453,12 @@ std::optional<detail::AddBookParams> View::GetBookParams(
       }
     }
   } else {
-    output_ << "Failed to add book"sv << std::endl;
-    return std::nullopt;
+    auto selected = SelectAuthor();
+    if (!selected.has_value()) {
+      output_ << "Failed to add book"sv << std::endl;
+      return std::nullopt;
+    }
+    author_id = selected;
   }
 
   if (!author_id.has_value()) {
