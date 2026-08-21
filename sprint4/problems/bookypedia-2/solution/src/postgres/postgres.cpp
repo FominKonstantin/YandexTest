@@ -53,26 +53,58 @@ ORDER BY name;
 void AuthorRepositoryImpl::DeleteAuthor(const std::string& author_id) {
   pqxx::work work{connection_};
 
+  // Проверяем, существует ли автор
+  auto check = work.exec_params(R"(
+SELECT id FROM authors WHERE id = $1;
+)"_zv,
+                                author_id);
+
+  if (check.empty()) {
+    work.commit();
+    throw std::runtime_error("Author not found");
+  }
+
+  // Удаляем книги автора (теги удалятся по CASCADE)
   work.exec_params(R"(
 DELETE FROM books WHERE author_id = $1;
 )"_zv,
                    author_id);
 
-  auto res = work.exec_params(R"(
-DELETE FROM authors WHERE id = $1 RETURNING id;
+  // Удаляем автора
+  work.exec_params(R"(
+DELETE FROM authors WHERE id = $1;
 )"_zv,
-                              author_id);
+                   author_id);
 
   work.commit();
-
-  if (res.empty()) {
-    throw std::runtime_error("Author not found");
-  }
 }
 
 void AuthorRepositoryImpl::UpdateAuthor(const std::string& author_id,
                                         const std::string& new_name) {
   pqxx::work work{connection_};
+
+  // Проверяем, существует ли автор
+  auto check = work.exec_params(R"(
+SELECT id FROM authors WHERE id = $1;
+)"_zv,
+                                author_id);
+
+  if (check.empty()) {
+    work.commit();
+    throw std::runtime_error("Author not found");
+  }
+
+  // Проверяем, не занято ли новое имя
+  auto name_check = work.exec_params(R"(
+SELECT id FROM authors WHERE name = $1 AND id != $2;
+)"_zv,
+                                     new_name, author_id);
+
+  if (!name_check.empty()) {
+    work.commit();
+    throw std::runtime_error("Author name already exists");
+  }
+
   work.exec_params(R"(
 UPDATE authors SET name = $2 WHERE id = $1;
 )"_zv,
@@ -82,14 +114,22 @@ UPDATE authors SET name = $2 WHERE id = $1;
 
 void BookRepositoryImpl::Save(const domain::Book& book) {
   pqxx::work work{connection_};
+
+  // Проверяем, существует ли автор
+  auto author_check = work.exec_params(R"(
+SELECT id FROM authors WHERE id = $1;
+)"_zv,
+                                       book.GetAuthorId());
+
+  if (author_check.empty()) {
+    work.commit();
+    throw std::runtime_error("Author not found");
+  }
+
   work.exec_params(
       R"(
 INSERT INTO books (id, author_id, title, publication_year) 
-VALUES ($1, $2, $3, $4)
-ON CONFLICT (id) DO UPDATE SET 
-    author_id=$2, 
-    title=$3, 
-    publication_year=$4;
+VALUES ($1, $2, $3, $4);
 )"_zv,
       book.GetId().ToString(), book.GetAuthorId(), book.GetTitle(),
       book.GetPublicationYear());
@@ -143,6 +183,18 @@ ORDER BY publication_year, title;
 
 void BookRepositoryImpl::DeleteBook(const std::string& book_id) {
   pqxx::work work{connection_};
+
+  // Проверяем, существует ли книга
+  auto check = work.exec_params(R"(
+SELECT id FROM books WHERE id = $1;
+)"_zv,
+                                book_id);
+
+  if (check.empty()) {
+    work.commit();
+    throw std::runtime_error("Book not found");
+  }
+
   work.exec_params(R"(
 DELETE FROM books WHERE id = $1;
 )"_zv,
@@ -154,6 +206,18 @@ void BookRepositoryImpl::UpdateBook(const std::string& book_id,
                                     const std::string& title,
                                     int publication_year) {
   pqxx::work work{connection_};
+
+  // Проверяем, существует ли книга
+  auto check = work.exec_params(R"(
+SELECT id FROM books WHERE id = $1;
+)"_zv,
+                                book_id);
+
+  if (check.empty()) {
+    work.commit();
+    throw std::runtime_error("Book not found");
+  }
+
   work.exec_params(R"(
 UPDATE books SET title = $2, publication_year = $3 WHERE id = $1;
 )"_zv,
@@ -165,16 +229,31 @@ void TagRepositoryImpl::SaveTags(const std::string& book_id,
                                  const std::vector<std::string>& tags) {
   pqxx::work work{connection_};
 
+  // Проверяем, существует ли книга
+  auto check = work.exec_params(R"(
+SELECT id FROM books WHERE id = $1;
+)"_zv,
+                                book_id);
+
+  if (check.empty()) {
+    work.commit();
+    throw std::runtime_error("Book not found");
+  }
+
+  // Удаляем старые теги
   work.exec_params(R"(
 DELETE FROM book_tags WHERE book_id = $1;
 )"_zv,
                    book_id);
 
+  // Добавляем новые теги
   for (const auto& tag : tags) {
-    work.exec_params(R"(
+    if (!tag.empty()) {
+      work.exec_params(R"(
 INSERT INTO book_tags (book_id, tag) VALUES ($1, $2);
 )"_zv,
-                     book_id, tag);
+                       book_id, tag);
+    }
   }
 
   work.commit();
@@ -201,6 +280,7 @@ void Database::EnsureTablesCreated() {
 
   pqxx::work work{connection_};
 
+  // Пересоздаем таблицы с правильными constraints
   work.exec(R"(
 DROP TABLE IF EXISTS book_tags CASCADE;
 DROP TABLE IF EXISTS books CASCADE;
