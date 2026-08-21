@@ -42,13 +42,11 @@ ORDER BY name;
 void AuthorRepositoryImpl::DeleteAuthor(const std::string& author_id) {
   pqxx::work work{connection_};
 
-  // Удаляем книги автора (теги удалятся по CASCADE)
   work.exec_params(R"(
 DELETE FROM books WHERE author_id = $1;
 )"_zv,
                    author_id);
 
-  // Удаляем автора с проверкой
   auto res = work.exec_params(R"(
 DELETE FROM authors WHERE id = $1 RETURNING id;
 )"_zv,
@@ -191,15 +189,23 @@ void Database::EnsureTablesCreated() {
   if (tables_created_) return;
 
   pqxx::work work{connection_};
+
+  // Пересоздаем таблицы с правильными constraints
   work.exec(R"(
-CREATE TABLE IF NOT EXISTS authors (
+DROP TABLE IF EXISTS book_tags CASCADE;
+DROP TABLE IF EXISTS books CASCADE;
+DROP TABLE IF EXISTS authors CASCADE;
+)"_zv);
+
+  work.exec(R"(
+CREATE TABLE authors (
     id UUID CONSTRAINT author_id_constraint PRIMARY KEY,
     name varchar(100) UNIQUE NOT NULL
 );
 )"_zv);
 
   work.exec(R"(
-CREATE TABLE IF NOT EXISTS books (
+CREATE TABLE books (
     id UUID CONSTRAINT book_id_constraint PRIMARY KEY,
     author_id UUID NOT NULL REFERENCES authors(id) ON DELETE CASCADE,
     title varchar(100) NOT NULL,
@@ -208,7 +214,7 @@ CREATE TABLE IF NOT EXISTS books (
 )"_zv);
 
   work.exec(R"(
-CREATE TABLE IF NOT EXISTS book_tags (
+CREATE TABLE book_tags (
     book_id UUID NOT NULL REFERENCES books(id) ON DELETE CASCADE,
     tag varchar(30) NOT NULL,
     PRIMARY KEY (book_id, tag)
