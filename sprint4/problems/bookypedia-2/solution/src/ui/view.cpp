@@ -164,7 +164,7 @@ bool View::DeleteBook(std::istream& cmd_input) const {
     if (!title.empty()) {
       books = GetBooksByTitle(title);
       if (books.empty()) {
-        output_ << "Failed to delete book"sv << std::endl;
+        output_ << "Book not found"sv << std::endl;
         return true;
       }
       if (books.size() > 1) {
