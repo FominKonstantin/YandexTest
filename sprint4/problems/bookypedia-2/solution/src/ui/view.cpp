@@ -95,10 +95,13 @@ bool View::AddBook(std::istream& cmd_input) const {
       return true;
     }
 
-    std::string author_name;
     output_ << "Enter author name or empty line to select from list:"
             << std::endl;
-    std::getline(input_, author_name);
+    std::string author_name;
+    if (!std::getline(input_, author_name)) {
+      output_ << "Failed to add book"sv << std::endl;
+      return true;
+    }
     boost::algorithm::trim(author_name);
 
     std::string author_id;
@@ -116,7 +119,10 @@ bool View::AddBook(std::istream& cmd_input) const {
         output_ << "No author found. Do you want to add " << author_name
                 << " (y/n)?" << std::endl;
         std::string answer;
-        std::getline(input_, answer);
+        if (!std::getline(input_, answer)) {
+          output_ << "Failed to add book"sv << std::endl;
+          return true;
+        }
         boost::algorithm::trim(answer);
         if (answer != "y" && answer != "Y") {
           output_ << "Failed to add book"sv << std::endl;
@@ -141,7 +147,7 @@ bool View::AddBook(std::istream& cmd_input) const {
 
     use_cases_.AddBook(author_id, title, year, tags);
 
-  } catch (const std::exception&) {
+  } catch (const std::exception& e) {
     output_ << "Failed to add book"sv << std::endl;
   }
   return true;
@@ -230,7 +236,10 @@ bool View::EditAuthor(std::istream& cmd_input) const {
 
     output_ << "Enter new name:" << std::endl;
     std::string new_name;
-    std::getline(input_, new_name);
+    if (!std::getline(input_, new_name)) {
+      output_ << "Failed to edit author"sv << std::endl;
+      return true;
+    }
     boost::algorithm::trim(new_name);
 
     if (new_name.empty()) {
@@ -239,6 +248,7 @@ bool View::EditAuthor(std::istream& cmd_input) const {
     }
 
     use_cases_.UpdateAuthor(author_id, new_name);
+
   } catch (const std::exception&) {
     output_ << "Failed to edit author"sv << std::endl;
   }
@@ -251,15 +261,51 @@ bool View::ShowBook(std::istream& cmd_input) const {
     std::getline(cmd_input, title);
     boost::algorithm::trim(title);
 
-    std::optional<detail::BookInfo> book;
     if (title.empty()) {
-      book = SelectBook();
+      auto book = SelectBook();
+      if (book.has_value()) {
+        PrintBookInfo(book.value());
+      }
     } else {
-      book = SelectBookByTitle(title);
-    }
+      auto all_books = GetBooks();
+      std::vector<detail::BookInfo> matches;
+      for (const auto& b : all_books) {
+        if (b.title == title) {
+          matches.push_back(b);
+        }
+      }
 
-    if (book.has_value()) {
-      PrintBookInfo(book.value());
+      if (matches.empty()) {
+        return true;
+      }
+
+      if (matches.size() == 1) {
+        PrintBookInfo(matches[0]);
+      } else {
+        output_ << "Multiple books found with title '" << title
+                << "':" << std::endl;
+        PrintVector(output_, matches);
+        output_ << "Enter the book # or empty line to cancel:" << std::endl;
+
+        std::string str;
+        if (!std::getline(input_, str) || str.empty()) {
+          return true;
+        }
+
+        int idx;
+        try {
+          idx = std::stoi(str);
+        } catch (std::exception const&) {
+          return true;
+        }
+
+        --idx;
+        if (idx < 0 || idx >= matches.size()) {
+          return true;
+        }
+
+        PrintBookInfo(matches[idx]);
+      }
     }
   } catch (const std::exception&) {
     // Ничего не выводим при ошибке
@@ -285,7 +331,6 @@ bool View::DeleteBook(std::istream& cmd_input) const {
 
       std::string str;
       if (!std::getline(input_, str) || str.empty()) {
-        output_ << "Failed to delete book"sv << std::endl;
         return true;
       }
 
@@ -303,7 +348,11 @@ bool View::DeleteBook(std::istream& cmd_input) const {
         return true;
       }
 
-      use_cases_.DeleteBook(books[idx].id);
+      try {
+        use_cases_.DeleteBook(books[idx].id);
+      } catch (const std::exception&) {
+        output_ << "Failed to delete book"sv << std::endl;
+      }
     } else {
       auto all_books = GetBooks();
       std::vector<detail::BookInfo> matches;
@@ -314,12 +363,16 @@ bool View::DeleteBook(std::istream& cmd_input) const {
       }
 
       if (matches.empty()) {
-        output_ << "Failed to delete book"sv << std::endl;
+        output_ << "Book not found"sv << std::endl;
         return true;
       }
 
       if (matches.size() == 1) {
-        use_cases_.DeleteBook(matches[0].id);
+        try {
+          use_cases_.DeleteBook(matches[0].id);
+        } catch (const std::exception&) {
+          output_ << "Failed to delete book"sv << std::endl;
+        }
       } else {
         output_ << "Multiple books found with title '" << title
                 << "':" << std::endl;
@@ -328,7 +381,6 @@ bool View::DeleteBook(std::istream& cmd_input) const {
 
         std::string str;
         if (!std::getline(input_, str) || str.empty()) {
-          output_ << "Failed to delete book"sv << std::endl;
           return true;
         }
 
@@ -346,7 +398,11 @@ bool View::DeleteBook(std::istream& cmd_input) const {
           return true;
         }
 
-        use_cases_.DeleteBook(matches[idx].id);
+        try {
+          use_cases_.DeleteBook(matches[idx].id);
+        } catch (const std::exception&) {
+          output_ << "Failed to delete book"sv << std::endl;
+        }
       }
     }
   } catch (const std::exception&) {
@@ -373,6 +429,9 @@ bool View::EditBook(std::istream& cmd_input) const {
       return true;
     }
 
+    // Сохраняем оригинальные теги
+    auto original_tags = book->tags;
+
     output_ << "Enter new title or empty line to use the current one ("
             << book->title << "):" << std::endl;
     std::string new_title;
@@ -397,11 +456,11 @@ bool View::EditBook(std::istream& cmd_input) const {
     }
 
     std::string tags_prompt = "Enter tags";
-    if (!book->tags.empty()) {
+    if (!original_tags.empty()) {
       tags_prompt += " (current tags: ";
-      for (size_t i = 0; i < book->tags.size(); ++i) {
+      for (size_t i = 0; i < original_tags.size(); ++i) {
         if (i > 0) tags_prompt += ", ";
-        tags_prompt += book->tags[i];
+        tags_prompt += original_tags[i];
       }
       tags_prompt += ")";
     }
@@ -416,7 +475,8 @@ bool View::EditBook(std::istream& cmd_input) const {
     if (!tags_input.empty()) {
       new_tags = ParseTags(tags_input);
     } else {
-      new_tags = book->tags;
+      // Сохраняем оригинальные теги, если пользователь не ввел новые
+      new_tags = original_tags;
     }
 
     use_cases_.UpdateBook(book->id, new_title, new_year, new_tags);
