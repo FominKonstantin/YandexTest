@@ -635,9 +635,15 @@ std::vector<std::string> View::ParseTags(const std::string& tags_input) const {
   std::string tag;
 
   while (std::getline(ss, tag, ',')) {
+    // Удаляем пробелы в начале и конце
     boost::algorithm::trim(tag);
-    if (tag.empty()) continue;
 
+    // Пропускаем пустые теги
+    if (tag.empty()) {
+      continue;
+    }
+
+    // Нормализуем пробелы внутри тега (удаляем лишние пробелы)
     std::string normalized;
     bool in_space = false;
     for (char c : tag) {
@@ -651,8 +657,11 @@ std::vector<std::string> View::ParseTags(const std::string& tags_input) const {
         in_space = false;
       }
     }
+
+    // Удаляем пробелы в начале и конце еще раз
     boost::algorithm::trim(normalized);
 
+    // Добавляем только уникальные теги
     if (!normalized.empty() &&
         std::find(result.begin(), result.end(), normalized) == result.end()) {
       result.push_back(normalized);
