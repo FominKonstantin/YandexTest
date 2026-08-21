@@ -143,7 +143,11 @@ bool View::AddBook(std::istream& cmd_input) const {
     output_ << "Enter tags (comma separated):" << std::endl;
     std::string tags_input;
     std::getline(input_, tags_input);
-    auto tags = ParseTags(tags_input);
+
+    std::vector<std::string> tags;
+    if (!tags_input.empty()) {
+      tags = ParseTags(tags_input);
+    }
 
     use_cases_.AddBook(author_id, title, year, tags);
 
@@ -622,31 +626,36 @@ std::optional<detail::BookInfo> View::SelectBookByTitle(
 
 std::vector<std::string> View::ParseTags(const std::string& tags_input) const {
   std::vector<std::string> result;
+
+  if (tags_input.empty()) {
+    return result;
+  }
+
   std::stringstream ss(tags_input);
   std::string tag;
 
   while (std::getline(ss, tag, ',')) {
     boost::algorithm::trim(tag);
-    // Удаляем лишние пробелы внутри тега
+    if (tag.empty()) continue;
+
     std::string normalized;
-    bool prev_space = false;
+    bool in_space = false;
     for (char c : tag) {
       if (c == ' ') {
-        if (!prev_space) {
-          normalized += c;
-          prev_space = true;
+        if (!in_space) {
+          normalized += ' ';
+          in_space = true;
         }
       } else {
         normalized += c;
-        prev_space = false;
+        in_space = false;
       }
     }
     boost::algorithm::trim(normalized);
 
-    if (!normalized.empty()) {
-      if (std::find(result.begin(), result.end(), normalized) == result.end()) {
-        result.push_back(normalized);
-      }
+    if (!normalized.empty() &&
+        std::find(result.begin(), result.end(), normalized) == result.end()) {
+      result.push_back(normalized);
     }
   }
 

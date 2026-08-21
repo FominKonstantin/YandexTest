@@ -42,17 +42,15 @@ ORDER BY name;
 void AuthorRepositoryImpl::DeleteAuthor(const std::string& author_id) {
   pqxx::work work{connection_};
 
-  // Удаляем книги автора (теги удалятся по CASCADE)
   work.exec_params(R"(
 DELETE FROM books WHERE author_id = $1;
 )"_zv,
                    author_id);
 
-  // Удаляем автора
-  auto res = work.exec_params(R"(
-DELETE FROM authors WHERE id = $1 RETURNING id;
+  work.exec_params(R"(
+DELETE FROM authors WHERE id = $1;
 )"_zv,
-                              author_id);
+                   author_id);
 
   work.commit();
 }
