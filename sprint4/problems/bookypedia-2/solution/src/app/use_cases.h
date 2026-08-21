@@ -9,6 +9,21 @@
 
 namespace app {
 
+// Структура должна быть объявлена ДО использования в UseCases
+struct BookWithDetails {
+  domain::Book book;
+  std::string author_name;
+  std::vector<std::string> tags;
+
+  // Явный конструктор по умолчанию
+  BookWithDetails() = default;
+
+  // Конструктор с параметрами
+  BookWithDetails(const domain::Book& b, const std::string& name,
+                  const std::vector<std::string>& t)
+      : book(b), author_name(name), tags(t) {}
+};
+
 class UseCases {
  public:
   virtual void AddAuthor(const std::string& name) = 0;
@@ -37,18 +52,6 @@ class UseCases {
 
  protected:
   ~UseCases() = default;
-};
-
-struct BookWithDetails {
-  domain::Book book;
-  std::string author_name;
-  std::vector<std::string> tags;
-
-  BookWithDetails() = default;
-
-  BookWithDetails(const domain::Book& b, const std::string& name,
-                  const std::vector<std::string>& t)
-      : book(b), author_name(name), tags(t) {}
 };
 
 }  // namespace app
