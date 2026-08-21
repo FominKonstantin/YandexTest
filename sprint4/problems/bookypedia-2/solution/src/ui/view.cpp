@@ -210,6 +210,7 @@ bool View::DeleteAuthor(std::istream& cmd_input) const {
     }
 
     use_cases_.DeleteAuthor(author_id);
+
   } catch (const std::exception&) {
     output_ << "Failed to delete author"sv << std::endl;
   }
