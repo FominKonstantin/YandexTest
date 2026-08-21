@@ -469,7 +469,7 @@ std::optional<detail::AddBookParams> View::GetBookParams(
 
   output_ << "Enter tags (comma separated):" << std::endl;
   std::string tags_input;
-  std::getline(input_, tags_input);
+  std::getline(input_, tags_input);  
   params.tags = NormalizeTags(tags_input);
 
   return params;
