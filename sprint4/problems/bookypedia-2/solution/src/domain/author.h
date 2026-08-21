@@ -1,4 +1,5 @@
 #pragma once
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -18,6 +19,7 @@ class Author {
       : id_(std::move(id)), name_(std::move(name)) {}
 
   const AuthorId& GetId() const noexcept { return id_; }
+
   const std::string& GetName() const noexcept { return name_; }
 
  private:
@@ -29,8 +31,10 @@ class AuthorRepository {
  public:
   virtual void Save(const Author& author) = 0;
   virtual std::vector<Author> GetAuthors() const = 0;
-  virtual void DeleteAuthor(const std::string& author_id) = 0;
-  virtual void UpdateAuthor(const std::string& author_id,
+  virtual std::optional<Author> GetAuthorByName(
+      const std::string& name) const = 0;
+  virtual bool DeleteAuthor(const std::string& author_id) = 0;
+  virtual bool UpdateAuthor(const std::string& author_id,
                             const std::string& new_name) = 0;
 
  protected:

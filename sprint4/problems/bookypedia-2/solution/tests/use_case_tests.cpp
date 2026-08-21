@@ -12,9 +12,8 @@ struct MockAuthorRepository : domain::AuthorRepository {
     saved_authors.emplace_back(author);
   }
 
+  // Добавить этот метод
   std::vector<domain::Author> GetAuthors() const override { return {}; }
-  void DeleteAuthor(const std::string&) override {}
-  void UpdateAuthor(const std::string&, const std::string&) override {}
 };
 
 struct Fixture {

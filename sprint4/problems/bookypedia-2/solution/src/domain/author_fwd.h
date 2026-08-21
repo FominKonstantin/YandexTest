@@ -6,7 +6,6 @@ class Author;
 class AuthorRepository;
 class Book;
 class BookRepository;
-class Tag;
-class TagRepository;
+class BookTagRepository;
 
 }  // namespace domain

@@ -18,7 +18,8 @@ class Application {
 
  private:
   postgres::Database db_;
-  app::UseCasesImpl use_cases_{db_.GetAuthors(), db_.GetBooks(), db_.GetTags()};
+  app::UseCasesImpl use_cases_{db_.GetAuthors(), db_.GetBooks(),
+                               db_.GetBookTags()};
 };
 
 }  // namespace bookypedia

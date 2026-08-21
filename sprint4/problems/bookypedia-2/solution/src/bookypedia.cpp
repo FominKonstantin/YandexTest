@@ -17,6 +17,7 @@ void Application::Run() {
   menu::Menu menu{std::cin, std::cout};
   ui::View view{menu, use_cases_, std::cin, std::cout};
 
+  // Добавляем команду Help, которая уже есть в меню
   menu.AddAction("Help"s, {}, "Show instructions"s, [&menu](std::istream&) {
     menu.ShowInstructions();
     return true;

@@ -4,7 +4,7 @@
 
 #include "../domain/author.h"
 #include "../domain/book.h"
-#include "../domain/tag.h"
+#include "../domain/book_tag.h"  // Новый файл
 
 namespace postgres {
 
@@ -15,8 +15,10 @@ class AuthorRepositoryImpl : public domain::AuthorRepository {
 
   void Save(const domain::Author& author) override;
   std::vector<domain::Author> GetAuthors() const override;
-  void DeleteAuthor(const std::string& author_id) override;
-  void UpdateAuthor(const std::string& author_id,
+  std::optional<domain::Author> GetAuthorByName(
+      const std::string& name) const override;
+  bool DeleteAuthor(const std::string& author_id) override;
+  bool UpdateAuthor(const std::string& author_id,
                     const std::string& new_name) override;
 
  private:
@@ -32,23 +34,28 @@ class BookRepositoryImpl : public domain::BookRepository {
   std::vector<domain::Book> GetBooks() const override;
   std::vector<domain::Book> GetAuthorBooks(
       const std::string& author_id) const override;
-  void DeleteBook(const std::string& book_id) override;
-  void UpdateBook(const std::string& book_id, const std::string& title,
-                  int publication_year) override;
+  std::vector<domain::Book> GetBooksByTitle(
+      const std::string& title) const override;
+  bool DeleteBook(const std::string& book_id) override;
+  bool UpdateBook(const domain::Book& book) override;
+  std::optional<domain::Book> GetBookById(
+      const std::string& book_id) const override;
 
  private:
   pqxx::connection& connection_;
 };
 
-class TagRepositoryImpl : public domain::TagRepository {
+class BookTagRepositoryImpl : public domain::BookTagRepository {
  public:
-  explicit TagRepositoryImpl(pqxx::connection& connection)
+  explicit BookTagRepositoryImpl(pqxx::connection& connection)
       : connection_{connection} {}
 
   void SaveTags(const std::string& book_id,
                 const std::vector<std::string>& tags) override;
-  std::vector<std::string> GetBookTags(
+  std::vector<std::string> GetTagsForBook(
       const std::string& book_id) const override;
+  void DeleteTagsForBook(const std::string& book_id) override;
+  void DeleteTagsForBooks(const std::vector<std::string>& book_ids) override;
 
  private:
   pqxx::connection& connection_;
@@ -68,9 +75,9 @@ class Database {
     return books_;
   }
 
-  TagRepositoryImpl& GetTags() & {
+  BookTagRepositoryImpl& GetBookTags() & {
     EnsureTablesCreated();
-    return tags_;
+    return book_tags_;
   }
 
  private:
@@ -79,7 +86,7 @@ class Database {
   pqxx::connection connection_;
   AuthorRepositoryImpl authors_{connection_};
   BookRepositoryImpl books_{connection_};
-  TagRepositoryImpl tags_{connection_};
+  BookTagRepositoryImpl book_tags_{connection_};
   bool tables_created_{false};
 };
 

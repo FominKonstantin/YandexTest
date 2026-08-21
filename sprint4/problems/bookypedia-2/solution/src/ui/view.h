@@ -31,7 +31,6 @@ struct BookInfo {
   std::string id;
   std::string title;
   std::string author_name;
-  std::string author_id;
   int publication_year;
   std::vector<std::string> tags;
 };
@@ -50,24 +49,26 @@ class View {
   bool ShowBooks() const;
   bool ShowAuthorBooks() const;
   bool DeleteAuthor(std::istream& cmd_input) const;
-  bool EditAuthor(std::istream& cmd_input) const;
-  bool ShowBook(std::istream& cmd_input) const;
   bool DeleteBook(std::istream& cmd_input) const;
+  bool EditAuthor(std::istream& cmd_input) const;
   bool EditBook(std::istream& cmd_input) const;
+  bool ShowBook(std::istream& cmd_input) const;
 
   std::optional<detail::AddBookParams> GetBookParams(
       std::istream& cmd_input) const;
   std::optional<std::string> SelectAuthor() const;
   std::optional<std::string> SelectAuthorByName(const std::string& name) const;
-  std::optional<detail::BookInfo> SelectBook() const;
-  std::optional<detail::BookInfo> SelectBookByTitle(
-      const std::string& title) const;
-  std::vector<std::string> ParseTags(const std::string& tags_input) const;
+  std::optional<std::string> SelectBookFromList(
+      const std::vector<detail::BookInfo>& books,
+      const std::string& prompt) const;
   std::vector<detail::AuthorInfo> GetAuthors() const;
   std::vector<detail::BookInfo> GetBooks() const;
   std::vector<detail::BookInfo> GetAuthorBooks(
       const std::string& author_id) const;
-  void PrintBookInfo(const detail::BookInfo& book) const;
+  std::vector<detail::BookInfo> GetBooksByTitle(const std::string& title) const;
+  std::optional<std::string> GetAuthorIdByNameOrSelect(
+      const std::string& name) const;
+  std::vector<std::string> NormalizeTags(const std::string& tags_input) const;
 
   menu::Menu& menu_;
   app::UseCases& use_cases_;
