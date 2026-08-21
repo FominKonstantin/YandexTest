@@ -10,10 +10,21 @@ using pqxx::operator"" _zv;
 
 void AuthorRepositoryImpl::Save(const domain::Author& author) {
   pqxx::work work{connection_};
+
+  // Проверяем, существует ли автор с таким именем
+  auto check = work.exec_params(R"(
+SELECT id FROM authors WHERE name = $1;
+)"_zv,
+                                author.GetName());
+
+  if (!check.empty()) {
+    work.commit();
+    throw std::runtime_error("Author already exists");
+  }
+
   work.exec_params(
       R"(
-INSERT INTO authors (id, name) VALUES ($1, $2)
-ON CONFLICT (id) DO UPDATE SET name=$2;
+INSERT INTO authors (id, name) VALUES ($1, $2);
 )"_zv,
       author.GetId().ToString(), author.GetName());
   work.commit();
@@ -190,7 +201,6 @@ void Database::EnsureTablesCreated() {
 
   pqxx::work work{connection_};
 
-  // Пересоздаем таблицы с правильными constraints
   work.exec(R"(
 DROP TABLE IF EXISTS book_tags CASCADE;
 DROP TABLE IF EXISTS books CASCADE;
