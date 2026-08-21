@@ -127,22 +127,21 @@ std::optional<BookWithDetails> UseCasesImpl::GetBookWithDetails(
 
 BookWithDetails UseCasesImpl::BookToBookWithDetails(
     const domain::Book& book) const {
-  BookWithDetails result;
-  result.book = book;
-
   // Получаем имя автора
+  std::string author_name;
   auto authors = authors_.GetAuthors();
   for (const auto& author : authors) {
     if (author.GetId().ToString() == book.GetAuthorId()) {
-      result.author_name = author.GetName();
+      author_name = author.GetName();
       break;
     }
   }
 
   // Получаем теги
-  result.tags = book_tags_.GetTagsForBook(book.GetId().ToString());
+  auto tags = book_tags_.GetTagsForBook(book.GetId().ToString());
 
-  return result;
+  // Используем агрегатную инициализацию вместо создания пустого объекта
+  return BookWithDetails{book, author_name, tags};
 }
 
 }  // namespace app

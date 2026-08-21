@@ -1,5 +1,6 @@
 #pragma once
 #include "../domain/author_fwd.h"
+#include "../domain/book_tag.h"  // <-- ДОБАВЬТЕ ЭТУ СТРОЧКУ
 #include "use_cases.h"
 
 namespace app {
