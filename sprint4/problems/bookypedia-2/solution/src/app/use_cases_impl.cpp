@@ -1,5 +1,7 @@
 #include "use_cases_impl.h"
 
+#include <iostream>  // Добавить для std::cerr
+
 #include "../domain/author.h"
 #include "../domain/book.h"
 
@@ -37,13 +39,20 @@ std::vector<BookWithDetails> UseCasesImpl::GetBooks() const {
 
 std::vector<BookWithDetails> UseCasesImpl::GetAuthorBooks(
     const std::string& author_id) const {
+  std::cerr << "=== GetAuthorBooks ===" << std::endl;
+  std::cerr << "author_id: " << author_id << std::endl;
+
   auto books = books_.GetAuthorBooks(author_id);
   std::vector<BookWithDetails> result;
   result.reserve(books.size());
 
+  std::cerr << "Found " << books.size() << " books" << std::endl;
+
   for (const auto& book : books) {
     result.push_back(BookToBookWithDetails(book));
   }
+
+  std::cerr << "======================" << std::endl;
 
   return result;
 }
@@ -85,7 +94,16 @@ bool UseCasesImpl::DeleteBook(const std::string& book_id) {
 
 bool UseCasesImpl::EditAuthor(const std::string& author_id,
                               const std::string& new_name) {
-  return authors_.UpdateAuthor(author_id, new_name);
+  std::cerr << "=== EditAuthor ===" << std::endl;
+  std::cerr << "author_id: " << author_id << std::endl;
+  std::cerr << "new_name: " << new_name << std::endl;
+
+  bool result = authors_.UpdateAuthor(author_id, new_name);
+
+  std::cerr << "result: " << (result ? "true" : "false") << std::endl;
+  std::cerr << "==================" << std::endl;
+
+  return result;
 }
 
 bool UseCasesImpl::EditBook(const std::string& book_id,
@@ -110,7 +128,20 @@ bool UseCasesImpl::EditBook(const std::string& book_id,
 
 std::optional<domain::Author> UseCasesImpl::GetAuthorByName(
     const std::string& name) const {
-  return authors_.GetAuthorByName(name);
+  std::cerr << "=== GetAuthorByName ===" << std::endl;
+  std::cerr << "Searching for name: " << name << std::endl;
+
+  auto result = authors_.GetAuthorByName(name);
+
+  if (result.has_value()) {
+    std::cerr << "Found: ID=" << result->GetId().ToString()
+              << ", Name=" << result->GetName() << std::endl;
+  } else {
+    std::cerr << "Not found!" << std::endl;
+  }
+  std::cerr << "========================" << std::endl;
+
+  return result;
 }
 
 std::optional<domain::Book> UseCasesImpl::GetBookById(
@@ -132,17 +163,27 @@ BookWithDetails UseCasesImpl::BookToBookWithDetails(
   // Получаем имя автора
   std::string author_name;
   auto authors = authors_.GetAuthors();
+
+  std::cerr << "=== BookToBookWithDetails ===" << std::endl;
+  std::cerr << "book_id: " << book.GetId().ToString() << std::endl;
+  std::cerr << "book author_id: " << book.GetAuthorId() << std::endl;
+  std::cerr << "All authors in DB:" << std::endl;
+
   for (const auto& author : authors) {
+    std::cerr << "  Author ID: " << author.GetId().ToString()
+              << " -> Name: " << author.GetName() << std::endl;
     if (author.GetId().ToString() == book.GetAuthorId()) {
       author_name = author.GetName();
-      break;
+      std::cerr << "  >>> FOUND! author_name = " << author_name << std::endl;
     }
   }
+
+  std::cerr << "Final author_name: " << author_name << std::endl;
+  std::cerr << "=============================" << std::endl;
 
   // Получаем теги
   auto tags = book_tags_.GetTagsForBook(book.GetId().ToString());
 
-  // Используем агрегатную инициализацию вместо создания пустого объекта
   return BookWithDetails{book, author_name, tags};
 }
 
