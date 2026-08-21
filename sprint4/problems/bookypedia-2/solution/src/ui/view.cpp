@@ -458,12 +458,8 @@ std::optional<detail::AddBookParams> View::GetBookParams(
       }
     }
   } else {
-    auto selected = SelectAuthor();
-    if (!selected.has_value()) {
-      output_ << "Failed to add book"sv << std::endl;
-      return std::nullopt;
-    }
-    author_id = selected;
+    output_ << "Failed to add book"sv << std::endl;
+    return std::nullopt;
   }
 
   if (!author_id.has_value()) {
@@ -474,7 +470,7 @@ std::optional<detail::AddBookParams> View::GetBookParams(
 
   output_ << "Enter tags (comma separated):" << std::endl;
   std::string tags_input;
-  std::getline(input_, tags_input);  
+  std::getline(input_, tags_input);
   params.tags = NormalizeTags(tags_input);
 
   return params;
