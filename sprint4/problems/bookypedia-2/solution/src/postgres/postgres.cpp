@@ -42,37 +42,29 @@ ORDER BY name;
 void AuthorRepositoryImpl::DeleteAuthor(const std::string& author_id) {
   pqxx::work work{connection_};
 
-  // Сначала удаляем все книги автора (теги удалятся по CASCADE)
+  // Удаляем книги автора (теги удалятся по CASCADE)
   work.exec_params(R"(
 DELETE FROM books WHERE author_id = $1;
 )"_zv,
                    author_id);
 
-  // Затем удаляем самого автора
+  // Удаляем автора
   auto res = work.exec_params(R"(
 DELETE FROM authors WHERE id = $1 RETURNING id;
 )"_zv,
                               author_id);
 
   work.commit();
-
-  if (res.empty()) {
-    throw std::runtime_error("Author not found");
-  }
 }
 
 void AuthorRepositoryImpl::UpdateAuthor(const std::string& author_id,
                                         const std::string& new_name) {
   pqxx::work work{connection_};
-  auto res = work.exec_params(R"(
-UPDATE authors SET name = $2 WHERE id = $1 RETURNING id;
+  work.exec_params(R"(
+UPDATE authors SET name = $2 WHERE id = $1;
 )"_zv,
-                              author_id, new_name);
+                   author_id, new_name);
   work.commit();
-
-  if (res.empty()) {
-    throw std::runtime_error("Author not found");
-  }
 }
 
 void BookRepositoryImpl::Save(const domain::Book& book) {
@@ -138,30 +130,22 @@ ORDER BY publication_year, title;
 
 void BookRepositoryImpl::DeleteBook(const std::string& book_id) {
   pqxx::work work{connection_};
-  auto res = work.exec_params(R"(
-DELETE FROM books WHERE id = $1 RETURNING id;
+  work.exec_params(R"(
+DELETE FROM books WHERE id = $1;
 )"_zv,
-                              book_id);
+                   book_id);
   work.commit();
-
-  if (res.empty()) {
-    throw std::runtime_error("Book not found");
-  }
 }
 
 void BookRepositoryImpl::UpdateBook(const std::string& book_id,
                                     const std::string& title,
                                     int publication_year) {
   pqxx::work work{connection_};
-  auto res = work.exec_params(R"(
-UPDATE books SET title = $2, publication_year = $3 WHERE id = $1 RETURNING id;
+  work.exec_params(R"(
+UPDATE books SET title = $2, publication_year = $3 WHERE id = $1;
 )"_zv,
-                              book_id, title, publication_year);
+                   book_id, title, publication_year);
   work.commit();
-
-  if (res.empty()) {
-    throw std::runtime_error("Book not found");
-  }
 }
 
 void TagRepositoryImpl::SaveTags(const std::string& book_id,

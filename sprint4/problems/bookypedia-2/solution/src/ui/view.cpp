@@ -266,47 +266,51 @@ bool View::ShowBook(std::istream& cmd_input) const {
       if (book.has_value()) {
         PrintBookInfo(book.value());
       }
-    } else {
-      auto all_books = GetBooks();
-      std::vector<detail::BookInfo> matches;
-      for (const auto& b : all_books) {
-        if (b.title == title) {
-          matches.push_back(b);
-        }
-      }
+      return true;
+    }
 
-      if (matches.empty()) {
-        return true;
-      }
-
-      if (matches.size() == 1) {
-        PrintBookInfo(matches[0]);
-      } else {
-        output_ << "Multiple books found with title '" << title
-                << "':" << std::endl;
-        PrintVector(output_, matches);
-        output_ << "Enter the book # or empty line to cancel:" << std::endl;
-
-        std::string str;
-        if (!std::getline(input_, str) || str.empty()) {
-          return true;
-        }
-
-        int idx;
-        try {
-          idx = std::stoi(str);
-        } catch (std::exception const&) {
-          return true;
-        }
-
-        --idx;
-        if (idx < 0 || idx >= matches.size()) {
-          return true;
-        }
-
-        PrintBookInfo(matches[idx]);
+    auto all_books = GetBooks();
+    std::vector<detail::BookInfo> matches;
+    for (const auto& b : all_books) {
+      if (b.title == title) {
+        matches.push_back(b);
       }
     }
+
+    if (matches.empty()) {
+      return true;
+    }
+
+    if (matches.size() == 1) {
+      PrintBookInfo(matches[0]);
+      return true;
+    }
+
+    // Несколько книг с одинаковым названием
+    output_ << "Multiple books found with title '" << title
+            << "':" << std::endl;
+    PrintVector(output_, matches);
+    output_ << "Enter the book # or empty line to cancel:" << std::endl;
+
+    std::string str;
+    if (!std::getline(input_, str) || str.empty()) {
+      return true;
+    }
+
+    int idx;
+    try {
+      idx = std::stoi(str);
+    } catch (std::exception const&) {
+      return true;
+    }
+
+    --idx;
+    if (idx < 0 || idx >= static_cast<int>(matches.size())) {
+      return true;
+    }
+
+    PrintBookInfo(matches[idx]);
+
   } catch (const std::exception&) {
     // Ничего не выводим при ошибке
   }
@@ -343,68 +347,61 @@ bool View::DeleteBook(std::istream& cmd_input) const {
       }
 
       --idx;
-      if (idx < 0 || idx >= books.size()) {
+      if (idx < 0 || idx >= static_cast<int>(books.size())) {
         output_ << "Failed to delete book"sv << std::endl;
         return true;
       }
 
-      try {
-        use_cases_.DeleteBook(books[idx].id);
-      } catch (const std::exception&) {
-        output_ << "Failed to delete book"sv << std::endl;
-      }
-    } else {
-      auto all_books = GetBooks();
-      std::vector<detail::BookInfo> matches;
-      for (const auto& b : all_books) {
-        if (b.title == title) {
-          matches.push_back(b);
-        }
-      }
+      use_cases_.DeleteBook(books[idx].id);
+      return true;
+    }
 
-      if (matches.empty()) {
-        output_ << "Book not found"sv << std::endl;
-        return true;
-      }
-
-      if (matches.size() == 1) {
-        try {
-          use_cases_.DeleteBook(matches[0].id);
-        } catch (const std::exception&) {
-          output_ << "Failed to delete book"sv << std::endl;
-        }
-      } else {
-        output_ << "Multiple books found with title '" << title
-                << "':" << std::endl;
-        PrintVector(output_, matches);
-        output_ << "Enter the book # or empty line to cancel:" << std::endl;
-
-        std::string str;
-        if (!std::getline(input_, str) || str.empty()) {
-          return true;
-        }
-
-        int idx;
-        try {
-          idx = std::stoi(str);
-        } catch (std::exception const&) {
-          output_ << "Failed to delete book"sv << std::endl;
-          return true;
-        }
-
-        --idx;
-        if (idx < 0 || idx >= matches.size()) {
-          output_ << "Failed to delete book"sv << std::endl;
-          return true;
-        }
-
-        try {
-          use_cases_.DeleteBook(matches[idx].id);
-        } catch (const std::exception&) {
-          output_ << "Failed to delete book"sv << std::endl;
-        }
+    // Ищем книги по названию
+    auto all_books = GetBooks();
+    std::vector<detail::BookInfo> matches;
+    for (const auto& b : all_books) {
+      if (b.title == title) {
+        matches.push_back(b);
       }
     }
+
+    if (matches.empty()) {
+      output_ << "Book not found"sv << std::endl;
+      return true;
+    }
+
+    if (matches.size() == 1) {
+      use_cases_.DeleteBook(matches[0].id);
+      return true;
+    }
+
+    // Несколько книг с одинаковым названием
+    output_ << "Multiple books found with title '" << title
+            << "':" << std::endl;
+    PrintVector(output_, matches);
+    output_ << "Enter the book # or empty line to cancel:" << std::endl;
+
+    std::string str;
+    if (!std::getline(input_, str) || str.empty()) {
+      return true;
+    }
+
+    int idx;
+    try {
+      idx = std::stoi(str);
+    } catch (std::exception const&) {
+      output_ << "Failed to delete book"sv << std::endl;
+      return true;
+    }
+
+    --idx;
+    if (idx < 0 || idx >= static_cast<int>(matches.size())) {
+      output_ << "Failed to delete book"sv << std::endl;
+      return true;
+    }
+
+    use_cases_.DeleteBook(matches[idx].id);
+
   } catch (const std::exception&) {
     output_ << "Failed to delete book"sv << std::endl;
   }
@@ -533,7 +530,7 @@ std::optional<std::string> View::SelectAuthor() const {
   }
 
   --author_idx;
-  if (author_idx < 0 or author_idx >= authors.size()) {
+  if (author_idx < 0 or author_idx >= static_cast<int>(authors.size())) {
     return std::nullopt;
   }
 
@@ -573,7 +570,7 @@ std::optional<detail::BookInfo> View::SelectBook() const {
   }
 
   --idx;
-  if (idx < 0 || idx >= books.size()) {
+  if (idx < 0 || idx >= static_cast<int>(books.size())) {
     return std::nullopt;
   }
 
@@ -616,7 +613,7 @@ std::optional<detail::BookInfo> View::SelectBookByTitle(
   }
 
   --idx;
-  if (idx < 0 || idx >= matches.size()) {
+  if (idx < 0 || idx >= static_cast<int>(matches.size())) {
     return std::nullopt;
   }
 
@@ -690,6 +687,15 @@ std::vector<detail::BookInfo> View::GetBooks() const {
     result.push_back({book.GetId().ToString(), book.GetTitle(), author_name,
                       book.GetAuthorId(), book.GetPublicationYear(), tags});
   }
+
+  // Сортируем книги: по названию, затем по автору, затем по году
+  std::sort(result.begin(), result.end(),
+            [](const detail::BookInfo& a, const detail::BookInfo& b) {
+              if (a.title != b.title) return a.title < b.title;
+              if (a.author_name != b.author_name)
+                return a.author_name < b.author_name;
+              return a.publication_year < b.publication_year;
+            });
 
   return result;
 }
