@@ -1,6 +1,8 @@
 #include "use_cases_impl.h"
 
-#include <iostream>  // Добавить для std::cerr
+#include <algorithm>
+#include <unordered_map>
+#include <utility>
 
 #include "../domain/author.h"
 #include "../domain/book.h"
@@ -15,10 +17,30 @@ void UseCasesImpl::AddAuthor(const std::string& name) {
 void UseCasesImpl::AddBook(const std::string& author_id,
                            const std::string& title, int publication_year,
                            const std::vector<std::string>& tags) {
-  auto book_id = BookId::New();
-  Book book{book_id, author_id, title, publication_year};
+  Book book{BookId::New(), author_id, title, publication_year};
+  if (commands_) {
+    commands_->AddBook(book, tags);
+    return;
+  }
+
   books_.Save(book);
-  book_tags_.SaveTags(book_id.ToString(), tags);
+  book_tags_.SaveTags(book.GetId().ToString(), tags);
+}
+
+void UseCasesImpl::AddBookWithNewAuthor(
+    const std::string& author_name, const std::string& title,
+    int publication_year, const std::vector<std::string>& tags) {
+  Author author{AuthorId::New(), author_name};
+  Book book{BookId::New(), author.GetId().ToString(), title, publication_year};
+
+  if (commands_) {
+    commands_->AddBookWithAuthor(author, book, tags);
+    return;
+  }
+
+  authors_.Save(author);
+  books_.Save(book);
+  book_tags_.SaveTags(book.GetId().ToString(), tags);
 }
 
 std::vector<Author> UseCasesImpl::GetAuthors() const {
@@ -27,33 +49,53 @@ std::vector<Author> UseCasesImpl::GetAuthors() const {
 
 std::vector<BookWithDetails> UseCasesImpl::GetBooks() const {
   auto books = books_.GetBooks();
+  const auto authors = authors_.GetAuthors();
+
+  std::unordered_map<std::string, std::string> author_names;
+  author_names.reserve(authors.size());
+  for (const auto& author : authors) {
+    author_names.emplace(author.GetId().ToString(), author.GetName());
+  }
+
   std::vector<BookWithDetails> result;
   result.reserve(books.size());
-
   for (const auto& book : books) {
-    result.push_back(BookToBookWithDetails(book));
+    std::string author_name;
+    if (const auto it = author_names.find(book.GetAuthorId());
+        it != author_names.end()) {
+      author_name = it->second;
+    }
+    result.push_back({book, std::move(author_name),
+                      book_tags_.GetTagsForBook(book.GetId().ToString())});
   }
+
+  std::sort(result.begin(), result.end(),
+            [](const BookWithDetails& lhs, const BookWithDetails& rhs) {
+              if (lhs.book.GetTitle() != rhs.book.GetTitle()) {
+                return lhs.book.GetTitle() < rhs.book.GetTitle();
+              }
+              if (lhs.author_name != rhs.author_name) {
+                return lhs.author_name < rhs.author_name;
+              }
+              if (lhs.book.GetPublicationYear() !=
+                  rhs.book.GetPublicationYear()) {
+                return lhs.book.GetPublicationYear() <
+                       rhs.book.GetPublicationYear();
+              }
+              return lhs.book.GetId().ToString() < rhs.book.GetId().ToString();
+            });
 
   return result;
 }
 
 std::vector<BookWithDetails> UseCasesImpl::GetAuthorBooks(
     const std::string& author_id) const {
-  std::cerr << "=== GetAuthorBooks ===" << std::endl;
-  std::cerr << "author_id: " << author_id << std::endl;
-
   auto books = books_.GetAuthorBooks(author_id);
   std::vector<BookWithDetails> result;
   result.reserve(books.size());
-
-  std::cerr << "Found " << books.size() << " books" << std::endl;
-
   for (const auto& book : books) {
     result.push_back(BookToBookWithDetails(book));
   }
-
-  std::cerr << "======================" << std::endl;
-
   return result;
 }
 
@@ -63,85 +105,64 @@ std::vector<domain::Book> UseCasesImpl::GetBooksByTitle(
 }
 
 bool UseCasesImpl::DeleteAuthor(const std::string& author_id) {
-  // Сначала получаем книги автора
-  auto books = books_.GetAuthorBooks(author_id);
+  if (commands_) {
+    return commands_->DeleteAuthor(author_id);
+  }
+
+  const auto books = books_.GetAuthorBooks(author_id);
   std::vector<std::string> book_ids;
   book_ids.reserve(books.size());
   for (const auto& book : books) {
     book_ids.push_back(book.GetId().ToString());
   }
-
-  // Удаляем теги книг
-  if (!book_ids.empty()) {
-    book_tags_.DeleteTagsForBooks(book_ids);
-  }
-
-  // Удаляем книги автора
+  book_tags_.DeleteTagsForBooks(book_ids);
   for (const auto& book : books) {
     books_.DeleteBook(book.GetId().ToString());
   }
-
-  // Удаляем автора
   return authors_.DeleteAuthor(author_id);
 }
 
 bool UseCasesImpl::DeleteBook(const std::string& book_id) {
-  // Удаляем теги книги
+  if (commands_) {
+    return commands_->DeleteBook(book_id);
+  }
+
   book_tags_.DeleteTagsForBook(book_id);
-  // Удаляем книгу
   return books_.DeleteBook(book_id);
 }
 
 bool UseCasesImpl::EditAuthor(const std::string& author_id,
                               const std::string& new_name) {
-  std::cerr << "=== EditAuthor ===" << std::endl;
-  std::cerr << "author_id: " << author_id << std::endl;
-  std::cerr << "new_name: " << new_name << std::endl;
-
-  bool result = authors_.UpdateAuthor(author_id, new_name);
-
-  std::cerr << "result: " << (result ? "true" : "false") << std::endl;
-  std::cerr << "==================" << std::endl;
-
-  return result;
+  if (commands_) {
+    return commands_->EditAuthor(author_id, new_name);
+  }
+  return authors_.UpdateAuthor(author_id, new_name);
 }
 
 bool UseCasesImpl::EditBook(const std::string& book_id,
                             const std::string& title, int publication_year,
                             const std::vector<std::string>& tags) {
-  auto book_opt = books_.GetBookById(book_id);
-  if (!book_opt.has_value()) {
-    return false;
+  if (commands_) {
+    return commands_->EditBook(book_id, title, publication_year, tags);
   }
 
-  auto book = book_opt.value();
-  Book updated_book{book.GetId(), book.GetAuthorId(), title, publication_year};
-  bool result = books_.UpdateBook(updated_book);
-  if (result) {
-    if (!tags.empty()) {
-      book_tags_.DeleteTagsForBook(book_id);
-      book_tags_.SaveTags(book_id, tags);
-    }
+  const auto book = books_.GetBookById(book_id);
+  if (!book) {
+    return false;
   }
-  return result;
+  const Book updated_book{book->GetId(), book->GetAuthorId(), title,
+                          publication_year};
+  if (!books_.UpdateBook(updated_book)) {
+    return false;
+  }
+  book_tags_.DeleteTagsForBook(book_id);
+  book_tags_.SaveTags(book_id, tags);
+  return true;
 }
 
 std::optional<domain::Author> UseCasesImpl::GetAuthorByName(
     const std::string& name) const {
-  std::cerr << "=== GetAuthorByName ===" << std::endl;
-  std::cerr << "Searching for name: " << name << std::endl;
-
-  auto result = authors_.GetAuthorByName(name);
-
-  if (result.has_value()) {
-    std::cerr << "Found: ID=" << result->GetId().ToString()
-              << ", Name=" << result->GetName() << std::endl;
-  } else {
-    std::cerr << "Not found!" << std::endl;
-  }
-  std::cerr << "========================" << std::endl;
-
-  return result;
+  return authors_.GetAuthorByName(name);
 }
 
 std::optional<domain::Book> UseCasesImpl::GetBookById(
@@ -151,40 +172,26 @@ std::optional<domain::Book> UseCasesImpl::GetBookById(
 
 std::optional<BookWithDetails> UseCasesImpl::GetBookWithDetails(
     const std::string& book_id) const {
-  auto book_opt = books_.GetBookById(book_id);
-  if (!book_opt.has_value()) {
+  const auto book = books_.GetBookById(book_id);
+  if (!book) {
     return std::nullopt;
   }
-  return BookToBookWithDetails(book_opt.value());
+  return BookToBookWithDetails(*book);
 }
 
 BookWithDetails UseCasesImpl::BookToBookWithDetails(
     const domain::Book& book) const {
-  // Получаем имя автора
   std::string author_name;
-  auto authors = authors_.GetAuthors();
-
-  std::cerr << "=== BookToBookWithDetails ===" << std::endl;
-  std::cerr << "book_id: " << book.GetId().ToString() << std::endl;
-  std::cerr << "book author_id: " << book.GetAuthorId() << std::endl;
-  std::cerr << "All authors in DB:" << std::endl;
-
+  const auto authors = authors_.GetAuthors();
   for (const auto& author : authors) {
-    std::cerr << "  Author ID: " << author.GetId().ToString()
-              << " -> Name: " << author.GetName() << std::endl;
     if (author.GetId().ToString() == book.GetAuthorId()) {
       author_name = author.GetName();
-      std::cerr << "  >>> FOUND! author_name = " << author_name << std::endl;
+      break;
     }
   }
 
-  std::cerr << "Final author_name: " << author_name << std::endl;
-  std::cerr << "=============================" << std::endl;
-
-  // Получаем теги
-  auto tags = book_tags_.GetTagsForBook(book.GetId().ToString());
-
-  return BookWithDetails{book, author_name, tags};
+  return {book, std::move(author_name),
+          book_tags_.GetTagsForBook(book.GetId().ToString())};
 }
 
 }  // namespace app

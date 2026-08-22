@@ -1,4 +1,5 @@
 #pragma once
+
 #include <iosfwd>
 #include <optional>
 #include <string>
@@ -18,6 +19,7 @@ namespace detail {
 struct AddBookParams {
   std::string title;
   std::string author_id;
+  std::string new_author_name;
   int publication_year = 0;
   std::vector<std::string> tags;
 };
@@ -31,7 +33,7 @@ struct BookInfo {
   std::string id;
   std::string title;
   std::string author_name;
-  int publication_year;
+  int publication_year = 0;
   std::vector<std::string> tags;
 };
 
@@ -57,7 +59,6 @@ class View {
   std::optional<detail::AddBookParams> GetBookParams(
       std::istream& cmd_input) const;
   std::optional<std::string> SelectAuthor() const;
-  std::optional<std::string> SelectAuthorByName(const std::string& name) const;
   std::optional<std::string> SelectBookFromList(
       const std::vector<detail::BookInfo>& books,
       const std::string& prompt) const;
@@ -66,8 +67,6 @@ class View {
   std::vector<detail::BookInfo> GetAuthorBooks(
       const std::string& author_id) const;
   std::vector<detail::BookInfo> GetBooksByTitle(const std::string& title) const;
-  std::optional<std::string> GetAuthorIdByNameOrSelect(
-      const std::string& name) const;
   std::vector<std::string> NormalizeTags(const std::string& tags_input) const;
 
   menu::Menu& menu_;

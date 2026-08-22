@@ -1,11 +1,12 @@
 #pragma once
+
 #include "../domain/author_fwd.h"
-#include "../domain/book_tag.h"  // <-- ДОБАВЬТЕ ЭТУ СТРОЧКУ
+#include "../domain/book_tag.h"
+#include "../domain/command_repository.h"
 #include "use_cases.h"
 
 namespace app {
 
-// Добавить этот класс перед UseCasesImpl
 class DummyBookRepository : public domain::BookRepository {
  public:
   void Save(const domain::Book&) override {}
@@ -37,10 +38,14 @@ class UseCasesImpl : public UseCases {
  public:
   explicit UseCasesImpl(domain::AuthorRepository& authors,
                         domain::BookRepository& books,
-                        domain::BookTagRepository& book_tags)
-      : authors_{authors}, books_{books}, book_tags_{book_tags} {}
+                        domain::BookTagRepository& book_tags,
+                        domain::CommandRepository& commands)
+      : authors_{authors},
+        books_{books},
+        book_tags_{book_tags},
+        commands_{&commands} {}
 
-  // Добавить этот конструктор для тестов
+  // Нужен существующим модульным тестам AddAuthor.
   explicit UseCasesImpl(domain::AuthorRepository& authors)
       : authors_{authors}, books_{dummy_books_}, book_tags_{dummy_book_tags_} {}
 
@@ -48,6 +53,9 @@ class UseCasesImpl : public UseCases {
   void AddBook(const std::string& author_id, const std::string& title,
                int publication_year,
                const std::vector<std::string>& tags) override;
+  void AddBookWithNewAuthor(const std::string& author_name,
+                            const std::string& title, int publication_year,
+                            const std::vector<std::string>& tags) override;
   std::vector<domain::Author> GetAuthors() const override;
   std::vector<BookWithDetails> GetBooks() const override;
   std::vector<BookWithDetails> GetAuthorBooks(
@@ -74,6 +82,7 @@ class UseCasesImpl : public UseCases {
   domain::AuthorRepository& authors_;
   domain::BookRepository& books_;
   domain::BookTagRepository& book_tags_;
+  domain::CommandRepository* commands_ = nullptr;
   DummyBookRepository dummy_books_;
   DummyBookTagRepository dummy_book_tags_;
 };
