@@ -16,8 +16,9 @@ void UpdateDogsPositionAndGather(
     std::unordered_map<int, ::model::LostObject>& lost_objects,
     std::chrono::milliseconds /*current_game_time*/,
     std::chrono::milliseconds /*retirement_time*/,
-    std::unordered_map<::model::Dog::Id,
-                       DogInactivityInfo>& /*inactivity_info*/,
+    std::unordered_map<
+        ::model::Dog::Id, DogInactivityInfo,
+        util::TaggedHasher<::model::Dog::Id>>& /*inactivity_info*/,
     std::vector<std::shared_ptr<::model::Player>>& /*players_to_retire*/) {
   // Двигаем собак
   for (auto& dog : map.GetDogsMutable()) {
