@@ -7,6 +7,7 @@
 #include <vector>
 
 #include "model.h"
+#include "player.h"  // <-- ДОБАВИТЬ ЭТУ СТРОКУ
 
 namespace game_state {
 
