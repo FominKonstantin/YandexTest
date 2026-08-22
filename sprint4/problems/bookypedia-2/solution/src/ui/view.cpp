@@ -167,46 +167,44 @@ bool View::DeleteBook(std::istream& cmd_input) const {
         output_ << "Book not found"sv << std::endl;
         return true;
       }
-    } else {
-      books = GetBooks();
-      if (books.empty()) {
-        output_ << "No books available" << std::endl;
+
+      // Если книг несколько - показываем список для выбора
+      if (books.size() > 1) {
+        output_ << "Multiple books found:" << std::endl;
+        PrintVector(output_, books);
+        auto selected = SelectBookFromList(
+            books, "Enter the book # or empty line to cancel:");
+        if (!selected.has_value()) {
+          return true;
+        }
+        if (!use_cases_.DeleteBook(*selected)) {
+          output_ << "Failed to delete book"sv << std::endl;
+        }
         return true;
       }
-    }
 
-    if (books.size() > 1 && !title.empty()) {
-      output_ << "Multiple books found:" << std::endl;
-      PrintVector(output_, books);
-      auto selected = SelectBookFromList(
-          books, "Enter the book # or empty line to cancel:");
-      if (!selected.has_value()) {
-        return true;
-      }
-      if (!use_cases_.DeleteBook(*selected)) {
-        output_ << "Failed to delete book"sv << std::endl;
-      }
-      return true;
-    }
-
-    if (books.size() == 1) {
+      // Если только одна книга - удаляем её
       if (!use_cases_.DeleteBook(books[0].id)) {
         output_ << "Failed to delete book"sv << std::endl;
       }
       return true;
     }
 
-    if (title.empty()) {
-      PrintVector(output_, books);
-      auto selected = SelectBookFromList(
-          books, "Enter the book # or empty line to cancel:");
-      if (!selected.has_value()) {
-        return true;
-      }
-      if (!use_cases_.DeleteBook(*selected)) {
-        output_ << "Failed to delete book"sv << std::endl;
-      }
+    // title.empty() - показываем все книги для выбора
+    books = GetBooks();
+    if (books.empty()) {
+      output_ << "No books available" << std::endl;
       return true;
+    }
+
+    PrintVector(output_, books);
+    auto selected =
+        SelectBookFromList(books, "Enter the book # or empty line to cancel:");
+    if (!selected.has_value()) {
+      return true;  // Пользователь отменил - ничего не удаляем
+    }
+    if (!use_cases_.DeleteBook(*selected)) {
+      output_ << "Failed to delete book"sv << std::endl;
     }
   } catch (const std::exception&) {
     output_ << "Failed to delete book"sv << std::endl;
