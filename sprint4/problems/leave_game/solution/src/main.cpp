@@ -87,6 +87,26 @@ std::optional<Args> ParseCommandLine(int argc, const char* const argv[]) {
     return std::nullopt;
   }
 
+  // ===== ДОБАВИТЬ ЗНАЧЕНИЯ ПО УМОЛЧАНИЮ =====
+  if (args.config_file.empty()) {
+    const char* config_env = std::getenv("GAME_CONFIG_FILE");
+    if (config_env) {
+      args.config_file = config_env;
+    } else {
+      args.config_file = "/app/data/config.json";
+    }
+  }
+
+  if (args.www_root.empty()) {
+    const char* www_env = std::getenv("GAME_WWW_ROOT");
+    if (www_env) {
+      args.www_root = www_env;
+    } else {
+      args.www_root = "/app/static";
+    }
+  }
+  // ===== КОНЕЦ ДОБАВЛЕНИЯ =====
+
   if (args.config_file.empty() || args.www_root.empty()) {
     std::cerr << "Error: config-file and www-root are required" << std::endl;
     PrintHelp(desc);

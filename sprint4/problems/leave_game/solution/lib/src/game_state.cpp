@@ -49,7 +49,7 @@ void UpdateDogsPositionAndGather(
     }
     lost_objects.erase(id);
   }
-}
+}   
 
 double ClampPosition(double value, double min, double max) {
   return std::max(min, std::min(max, value));
