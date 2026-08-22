@@ -359,36 +359,4 @@ void ProcessGathering(
   }
 }
 
-void UpdateDogsPositionAndGather(
-    ::model::Map& map, std::chrono::milliseconds delta_time,
-    std::unordered_map<int, ::model::LostObject>& lost_objects) {
-  for (auto& dog : map.GetDogsMutable()) {
-    MoveDogOnRoad(dog, map, delta_time);
-  }
-
-  double dt = delta_time.count() / 1000.0;
-  if (dt <= 0.0) return;
-
-  std::vector<int> items_to_remove;
-  ProcessGathering(map, dt, lost_objects, items_to_remove);
-
-  for (int id : items_to_remove) {
-    auto it = lost_objects.find(id);
-    if (it != lost_objects.end()) {
-      for (auto& dog : map.GetDogsMutable()) {
-        auto& bag = dog.GetBagMutable();
-        auto bag_it = std::find_if(
-            bag.begin(), bag.end(),
-            [id](const ::model::LostObject& obj) { return obj.id == id; });
-        if (bag_it != bag.end()) {
-          int value = map.GetItemValue(bag_it->type);
-          dog.AddScore(value);
-          break;
-        }
-      }
-    }
-    lost_objects.erase(id);
-  }
-}
-
 }  // namespace game_state

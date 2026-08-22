@@ -24,6 +24,7 @@
 #include "serializers.h"
 #include "state_manager.h"
 #include "url_utils.h"
+#include "tagged.h"
 
 namespace http_handler {
 namespace beast = boost::beast;
@@ -50,14 +51,14 @@ constexpr std::string_view ALLOW = "Allow";
 
 class RequestHandler {
  public:
-  explicit RequestHandler(
-      model::Game& game, model::Players& players,
-      state_manager::StateManager& state_manager,
-      const std::optional<std::string>& state_file,
-      const std::filesystem::path& static_dir,
-      const std::filesystem::path& config_path, bool randomize_spawn,
-      net::strand<net::io_context::executor_type> strand,
-      records::RecordManager& record_manager)  // <-- Добавлен RecordManager
+  explicit RequestHandler(model::Game& game, model::Players& players,
+                          state_manager::StateManager& state_manager,
+                          const std::optional<std::string>& state_file,
+                          const std::filesystem::path& static_dir,
+                          const std::filesystem::path& config_path,
+                          bool randomize_spawn,
+                          net::strand<net::io_context::executor_type> strand,
+                          records::RecordManager& record_manager)
       : game_{game},
         players_{players},
         state_manager_{state_manager},
@@ -66,7 +67,10 @@ class RequestHandler {
         config_path_{config_path},
         strand_{strand},
         tick_enabled_{false},
-        record_manager_{record_manager} {  // <-- Инициализация
+        record_manager_{record_manager},
+        inactivity_info_{},                          // <-- добавить
+        players_to_retire_{},                        // <-- добавить
+        retirement_time_{std::chrono::minutes(1)} {  // <-- добавить
     LoadConfig();
   }
 
@@ -165,7 +169,8 @@ class RequestHandler {
   records::RecordManager& record_manager_;  // <-- Добавлен RecordManager
 
   // Для отслеживания бездействия
-  std::unordered_map<model::Dog::Id, game_state::DogInactivityInfo>
+  std::unordered_map<model::Dog::Id, game_state::DogInactivityInfo,
+                     util::TaggedHasher<model::Dog::Id>>
       inactivity_info_;
   std::vector<std::shared_ptr<model::Player>> players_to_retire_;
   std::chrono::milliseconds retirement_time_ = std::chrono::minutes(1);

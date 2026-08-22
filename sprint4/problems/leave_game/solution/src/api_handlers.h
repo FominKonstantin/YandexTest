@@ -2,7 +2,7 @@
 #include <boost/beast/http.hpp>
 #include <boost/json.hpp>
 #include <regex>
-#include <sstream>          // <-- ДОБАВИТЬ для std::istringstream
+#include <sstream>  // <-- ДОБАВИТЬ для std::istringstream
 
 #include "game_state.h"
 #include "http_server.h"
@@ -406,10 +406,19 @@ void HandleTickRequest(http::request<Body, http::basic_fields<Allocator>>&& req,
     }
 
     auto delta_time = std::chrono::milliseconds(time_delta_ms);
+    auto current_time = game.GetGameTime() + delta_time;
+
+    // Временные переменные для вызова функции с 7 аргументами
+    std::unordered_map<model::Dog::Id, game_state::DogInactivityInfo,
+                       util::TaggedHasher<model::Dog::Id>>
+        inactivity_info;
+    std::vector<std::shared_ptr<model::Player>> players_to_retire;
+    std::chrono::milliseconds retirement_time = std::chrono::minutes(1);
 
     for (auto& map : game.GetMaps()) {
-      game_state::UpdateDogsPositionAndGather(map, delta_time,
-                                              game.GetLostObjectsMutable());
+      game_state::UpdateDogsPositionAndGather(
+          map, delta_time, game.GetLostObjectsMutable(), current_time,
+          retirement_time, inactivity_info, players_to_retire);
     }
 
     game.UpdateTime(delta_time);
