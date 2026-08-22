@@ -33,7 +33,7 @@ std::ostream& operator<<(std::ostream& out, const BookInfo& book) {
 template <typename T>
 void PrintVector(std::ostream& out, const std::vector<T>& vector) {
   int i = 1;
-  for (auto& value : vector) {
+  for (const auto& value : vector) {
     out << i++ << " " << value << std::endl;
   }
 }
@@ -168,7 +168,6 @@ bool View::DeleteBook(std::istream& cmd_input) const {
         return true;
       }
 
-      // Если книг несколько - показываем список для выбора
       if (books.size() > 1) {
         output_ << "Multiple books found:" << std::endl;
         PrintVector(output_, books);
@@ -183,14 +182,13 @@ bool View::DeleteBook(std::istream& cmd_input) const {
         return true;
       }
 
-      // Если только одна книга - удаляем её
       if (!use_cases_.DeleteBook(books[0].id)) {
         output_ << "Failed to delete book"sv << std::endl;
       }
       return true;
     }
 
-    // title.empty() - показываем все книги для выбора
+    // title.empty() - show all books for selection
     books = GetBooks();
     if (books.empty()) {
       output_ << "No books available" << std::endl;
@@ -201,7 +199,7 @@ bool View::DeleteBook(std::istream& cmd_input) const {
     auto selected =
         SelectBookFromList(books, "Enter the book # or empty line to cancel:");
     if (!selected.has_value()) {
-      return true;  // Пользователь отменил - ничего не удаляем
+      return true;
     }
     if (!use_cases_.DeleteBook(*selected)) {
       output_ << "Failed to delete book"sv << std::endl;
@@ -505,7 +503,7 @@ std::optional<std::string> View::SelectAuthor() const {
   }
 
   --author_idx;
-  if (author_idx < 0 or author_idx >= authors.size()) {
+  if (author_idx < 0 || author_idx >= static_cast<int>(authors.size())) {
     output_ << "Failed to add book"sv << std::endl;
     return std::nullopt;
   }
@@ -530,7 +528,7 @@ std::optional<std::string> View::SelectBookFromList(
   }
 
   --idx;
-  if (idx < 0 || idx >= books.size()) {
+  if (idx < 0 || idx >= static_cast<int>(books.size())) {
     return std::nullopt;
   }
 
