@@ -1,0 +1,1 @@
+{"lost_objects":[{"id":0,"type":1,"x":3.2605385546535494E1,"y":0E0}],"players":[{"token":"5f798a7cd3793fa2f2ef4de131f4621e","player_id":0,"name":"user1","map_id":"map1","dog_id":0}],"map_dogs":{"town":[],"map1":[{"id":0,"name":"user1","x":4E1,"y":0E0,"speed_x":0E0,"speed_y":0E0,"direction":"U","bag":[],"score":0}]},"next_loot_id":1,"game_time_ms":0}
