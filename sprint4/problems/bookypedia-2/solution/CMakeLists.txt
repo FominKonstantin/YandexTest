@@ -2,12 +2,9 @@ cmake_minimum_required(VERSION 3.11)
 project(bookypedia CXX)
 set(CMAKE_CXX_STANDARD 20)
 
-# Для Conan 2 - используем conan_toolchain.cmake
-# Но find_package работает по-другому
-find_package(Boost REQUIRED)
-find_package(Catch2 REQUIRED)
-find_package(libpqxx REQUIRED)
-find_package(PostgreSQL REQUIRED)
+# Используем conan_basic_setup как в Conan 1
+include(${CMAKE_BINARY_DIR}/conanbuildinfo_multi.cmake)
+conan_basic_setup(TARGETS)
 
 set(THREADS_PREFER_PTHREAD_FLAG ON)
 find_package(Threads REQUIRED)
@@ -34,10 +31,9 @@ add_library(libbookypedia STATIC
 )
 
 target_link_libraries(libbookypedia PUBLIC 
-    Boost::boost 
+    CONAN_PKG::boost 
     Threads::Threads 
-    PostgreSQL::PostgreSQL
-    libpqxx::libpqxx
+    CONAN_PKG::libpqxx
 )
 
 add_executable(bookypedia
@@ -47,7 +43,7 @@ add_executable(bookypedia
 )
 
 target_link_libraries(bookypedia PRIVATE 
-    Boost::boost 
+    CONAN_PKG::boost 
     libbookypedia
 )
 
@@ -57,6 +53,6 @@ add_executable(tests
 )
 
 target_link_libraries(tests PRIVATE 
-    Catch2::Catch2 
+    CONAN_PKG::catch2 
     libbookypedia
 )
