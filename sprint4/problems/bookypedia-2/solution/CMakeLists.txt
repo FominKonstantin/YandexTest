@@ -4,11 +4,8 @@ project(bookypedia CXX)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-# Это важно! CMakeDeps генерирует файлы, которые find_package использует
-# Убедитесь, что у вас есть эти строки
-
-# Поиск библиотек через Conan (CMakeDeps)
-find_package(Boost REQUIRED CONFIG)  # CONFIG важен!
+# Поиск библиотек
+find_package(Boost REQUIRED CONFIG)
 find_package(Catch2 REQUIRED CONFIG)
 find_package(libpqxx REQUIRED CONFIG)
 find_package(PostgreSQL REQUIRED CONFIG)

@@ -45,7 +45,6 @@ class UseCasesImpl : public UseCases {
         book_tags_{book_tags},
         commands_{&commands} {}
 
-  // Нужен существующим модульным тестам AddAuthor.
   explicit UseCasesImpl(domain::AuthorRepository& authors)
       : authors_{authors}, books_{dummy_books_}, book_tags_{dummy_book_tags_} {}
 

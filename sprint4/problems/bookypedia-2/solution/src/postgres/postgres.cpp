@@ -1,6 +1,12 @@
 #include "postgres.h"
 
-#include <pqxx/zview.hxx>
+#include <pqxx/connection>
+#include <pqxx/transaction>
+
+#include "../domain/author.h"
+#include "../domain/book.h"
+#include "../domain/book_tag.h"
+#include "../domain/command_repository.h"
 
 namespace postgres {
 

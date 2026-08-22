@@ -8,8 +8,6 @@
 
 namespace domain {
 
-// Операции, которые затрагивают несколько таблиц, выполняются через этот
-// интерфейс одной транзакцией.
 class CommandRepository {
  public:
   virtual void AddBook(const Book& book,
