@@ -1,12 +1,7 @@
 #include "postgres.h"
 
-#include <pqxx/connection>
-#include <pqxx/transaction>
-
-#include "../domain/author.h"
-#include "../domain/book.h"
-#include "../domain/book_tag.h"
-#include "../domain/command_repository.h"
+#include <pqxx/pqxx>
+#include <pqxx/zview.hxx>
 
 namespace postgres {
 
@@ -58,10 +53,9 @@ ORDER BY name;
 
   std::vector<domain::Author> authors;
   authors.reserve(res.size());
-  for (const auto& row : res) {
-    authors.emplace_back(
-        domain::AuthorId::FromString(row[0].as<std::string>()),
-        row[1].as<std::string>());
+  for (size_t i = 0; i < res.size(); ++i) {
+    authors.emplace_back(domain::AuthorId::FromString(res[i][0].c_str()),
+                         res[i][1].c_str());
   }
   return authors;
 }
@@ -80,9 +74,8 @@ WHERE name = $1;
   if (res.empty()) {
     return std::nullopt;
   }
-  return domain::Author(
-      domain::AuthorId::FromString(res[0][0].as<std::string>()),
-      res[0][1].as<std::string>());
+  return domain::Author(domain::AuthorId::FromString(res[0][0].c_str()),
+                        res[0][1].c_str());
 }
 
 bool AuthorRepositoryImpl::DeleteAuthor(const std::string& author_id) {
@@ -134,10 +127,10 @@ ORDER BY b.title, a.name, b.publication_year;
 
   std::vector<domain::Book> books;
   books.reserve(res.size());
-  for (const auto& row : res) {
-    books.emplace_back(domain::BookId::FromString(row[0].as<std::string>()),
-                       row[1].as<std::string>(), row[2].as<std::string>(),
-                       row[3].as<int>());
+  for (size_t i = 0; i < res.size(); ++i) {
+    books.emplace_back(domain::BookId::FromString(res[i][0].c_str()),
+                       res[i][1].c_str(), res[i][2].c_str(),
+                       res[i][3].as<int>());
   }
   return books;
 }
@@ -156,10 +149,10 @@ ORDER BY publication_year, title;
 
   std::vector<domain::Book> books;
   books.reserve(res.size());
-  for (const auto& row : res) {
-    books.emplace_back(domain::BookId::FromString(row[0].as<std::string>()),
-                       row[1].as<std::string>(), row[2].as<std::string>(),
-                       row[3].as<int>());
+  for (size_t i = 0; i < res.size(); ++i) {
+    books.emplace_back(domain::BookId::FromString(res[i][0].c_str()),
+                       res[i][1].c_str(), res[i][2].c_str(),
+                       res[i][3].as<int>());
   }
   return books;
 }
@@ -179,10 +172,10 @@ ORDER BY a.name, b.publication_year;
 
   std::vector<domain::Book> books;
   books.reserve(res.size());
-  for (const auto& row : res) {
-    books.emplace_back(domain::BookId::FromString(row[0].as<std::string>()),
-                       row[1].as<std::string>(), row[2].as<std::string>(),
-                       row[3].as<int>());
+  for (size_t i = 0; i < res.size(); ++i) {
+    books.emplace_back(domain::BookId::FromString(res[i][0].c_str()),
+                       res[i][1].c_str(), res[i][2].c_str(),
+                       res[i][3].as<int>());
   }
   return books;
 }
@@ -233,8 +226,8 @@ WHERE id = $1;
   if (res.empty()) {
     return std::nullopt;
   }
-  return domain::Book(domain::BookId::FromString(res[0][0].as<std::string>()),
-                      res[0][1].as<std::string>(), res[0][2].as<std::string>(),
+  return domain::Book(domain::BookId::FromString(res[0][0].c_str()),
+                      res[0][1].c_str(), res[0][2].c_str(),
                       res[0][3].as<int>());
 }
 
@@ -262,8 +255,8 @@ ORDER BY tag;
 
   std::vector<std::string> tags;
   tags.reserve(res.size());
-  for (const auto& row : res) {
-    tags.push_back(row[0].as<std::string>());
+  for (size_t i = 0; i < res.size(); ++i) {
+    tags.push_back(res[i][0].c_str());
   }
   return tags;
 }
@@ -296,8 +289,8 @@ WHERE book_id = $1;
   work.commit();
 }
 
-void CommandRepositoryImpl::AddBook(
-    const domain::Book& book, const std::vector<std::string>& tags) {
+void CommandRepositoryImpl::AddBook(const domain::Book& book,
+                                    const std::vector<std::string>& tags) {
   pqxx::work work{connection_};
   InsertBook(work, book);
   InsertTags(work, book.GetId().ToString(), tags);
@@ -322,8 +315,6 @@ VALUES ($1, $2);
 bool CommandRepositoryImpl::DeleteAuthor(const std::string& author_id) {
   pqxx::work work{connection_};
 
-  // Блокировка строки делает проверку существования и удаление единым
-  // конкурентно-безопасным действием.
   const auto author = work.exec_params(
       R"(
 SELECT id
@@ -402,9 +393,10 @@ WHERE id = $2;
   return true;
 }
 
-bool CommandRepositoryImpl::EditBook(
-    const std::string& book_id, const std::string& title, int publication_year,
-    const std::vector<std::string>& tags) {
+bool CommandRepositoryImpl::EditBook(const std::string& book_id,
+                                     const std::string& title,
+                                     int publication_year,
+                                     const std::vector<std::string>& tags) {
   pqxx::work work{connection_};
   const auto updated = work.exec_params(
       R"(
