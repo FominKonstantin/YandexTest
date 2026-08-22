@@ -10,12 +10,13 @@ target_include_directories(game_model
         ${CMAKE_CURRENT_SOURCE_DIR}/include
     PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/src
+        ${CMAKE_CURRENT_SOURCE_DIR}/../src   # <-- ДОБАВИТЬ для доступа к player.h
 )
 
 target_link_libraries(game_model
     PUBLIC
         CONAN_PKG::boost
-        CONAN_PKG::libpqxx          # <-- ДОБАВИТЬ
+        CONAN_PKG::libpqxx
 )
 
 set_property(TARGET game_model PROPERTY CXX_STANDARD 20)

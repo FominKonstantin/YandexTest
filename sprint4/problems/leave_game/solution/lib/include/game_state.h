@@ -7,11 +7,15 @@
 #include <vector>
 
 #include "model.h"
-#include "player.h"
 
 namespace game_state {
 
 constexpr double ROAD_HALF_WIDTH = 0.4;
+
+// Forward declaration для Player
+namespace model {
+class Player;
+}
 
 struct DogInactivityInfo {
   std::chrono::milliseconds idle_start_time = std::chrono::milliseconds::zero();

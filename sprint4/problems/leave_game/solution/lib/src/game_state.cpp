@@ -4,6 +4,7 @@
 #include <cmath>
 
 #include "collision_detector.h"
+#include "player.h"  
 
 namespace game_state {
 
