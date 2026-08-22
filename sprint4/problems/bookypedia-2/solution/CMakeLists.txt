@@ -1,18 +1,14 @@
-cmake_minimum_required(VERSION 3.11)
+cmake_minimum_required(VERSION 3.20)
 project(bookypedia CXX)
-set(CMAKE_CXX_STANDARD 20)
 
-# Проверяем, существует ли conanbuildinfo_multi.cmake
-if(EXISTS ${CMAKE_BINARY_DIR}/conanbuildinfo_multi.cmake)
-    include(${CMAKE_BINARY_DIR}/conanbuildinfo_multi.cmake)
-    conan_basic_setup(TARGETS)
-else()
-    # Используем find_package напрямую
-    find_package(Boost REQUIRED)
-    find_package(Catch2 REQUIRED)
-    find_package(libpqxx REQUIRED)
-    find_package(PostgreSQL REQUIRED)
-endif()
+set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+# Для Conan 2 - используем CONFIG для find_package
+find_package(Boost CONFIG REQUIRED)
+find_package(Catch2 CONFIG REQUIRED)
+find_package(libpqxx CONFIG REQUIRED)
+find_package(PostgreSQL CONFIG REQUIRED)
 
 set(THREADS_PREFER_PTHREAD_FLAG ON)
 find_package(Threads REQUIRED)
