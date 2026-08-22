@@ -2,19 +2,23 @@
 
 #include <algorithm>
 #include <cmath>
+#include <memory>
 
 #include "collision_detector.h"
-#include "player.h"  
+#include "player.h"
+
+using namespace model;
 
 namespace game_state {
 
-    void UpdateDogsPositionAndGather(
-    model::Map& map, std::chrono::milliseconds delta_time,
-    std::unordered_map<int, model::LostObject>& lost_objects,
+void UpdateDogsPositionAndGather(
+    ::model::Map& map, std::chrono::milliseconds delta_time,
+    std::unordered_map<int, ::model::LostObject>& lost_objects,
     std::chrono::milliseconds /*current_game_time*/,
     std::chrono::milliseconds /*retirement_time*/,
-    std::unordered_map<model::Dog::Id, DogInactivityInfo>& /*inactivity_info*/,
-    std::vector<std::shared_ptr<model::Player>>& /*players_to_retire*/) {
+    std::unordered_map<::model::Dog::Id,
+                       DogInactivityInfo>& /*inactivity_info*/,
+    std::vector<std::shared_ptr<::model::Player>>& /*players_to_retire*/) {
   // Двигаем собак
   for (auto& dog : map.GetDogsMutable()) {
     MoveDogOnRoad(dog, map, delta_time);
@@ -34,7 +38,7 @@ namespace game_state {
         auto& bag = dog.GetBagMutable();
         auto bag_it = std::find_if(
             bag.begin(), bag.end(),
-            [id](const model::LostObject& obj) { return obj.id == id; });
+            [id](const ::model::LostObject& obj) { return obj.id == id; });
         if (bag_it != bag.end()) {
           int value = map.GetItemValue(bag_it->type);
           dog.AddScore(value);
@@ -50,9 +54,9 @@ double ClampPosition(double value, double min, double max) {
   return std::max(min, std::min(max, value));
 }
 
-std::optional<model::Road> FindRoadContainingPoint(const model::Map& map,
-                                                   double x, double y,
-                                                   bool prefer_vertical) {
+std::optional<::model::Road> FindRoadContainingPoint(const ::model::Map& map,
+                                                     double x, double y,
+                                                     bool prefer_vertical) {
   const auto& roads = map.GetRoads();
   const double EPSILON = 0.001;
 
@@ -114,7 +118,7 @@ std::optional<model::Road> FindRoadContainingPoint(const model::Map& map,
   return std::nullopt;
 }
 
-void MoveDogOnRoad(model::Dog& dog, const model::Map& map,
+void MoveDogOnRoad(::model::Dog& dog, const ::model::Map& map,
                    std::chrono::milliseconds delta_time) {
   auto pos = dog.GetPosition();
   double vx = dog.GetSpeedX();
@@ -139,7 +143,7 @@ void MoveDogOnRoad(model::Dog& dog, const model::Map& map,
       return;
     }
 
-    const model::Road* target_road = nullptr;
+    const ::model::Road* target_road = nullptr;
     for (const auto& road : roads) {
       if (prefer_vertical && road.IsVertical()) {
         target_road = &road;
@@ -221,7 +225,7 @@ void MoveDogOnRoad(model::Dog& dog, const model::Map& map,
       }
     }
 
-  } else {  
+  } else {
     double road_min_y =
         std::min(current_road->GetStart().y, current_road->GetEnd().y) -
         ROAD_HALF_WIDTH;
@@ -260,10 +264,18 @@ void MoveDogOnRoad(model::Dog& dog, const model::Map& map,
   dog.SetPosition({new_x, new_y});
 }
 
+void UpdateDogsPosition(::model::Map& map,
+                        std::chrono::milliseconds delta_time) {
+  auto& dogs = map.GetDogsMutable();
+  for (auto& dog : dogs) {
+    MoveDogOnRoad(dog, map, delta_time);
+  }
+}
+
 class GatheringProvider : public collision_detector::ItemGathererProvider {
  public:
-  GatheringProvider(const std::vector<model::LostObject>& items,
-                    const std::vector<model::Dog*>& dogs, double dt)
+  GatheringProvider(const std::vector<::model::LostObject>& items,
+                    const std::vector<::model::Dog*>& dogs, double dt)
       : items_(items), dogs_(dogs), dt_(dt) {}
 
   size_t ItemsCount() const override { return items_.size(); }
@@ -282,27 +294,25 @@ class GatheringProvider : public collision_detector::ItemGathererProvider {
     double end_x = pos.x + dog->GetSpeedX() * dt_;
     double end_y = pos.y + dog->GetSpeedY() * dt_;
 
-    return {
-        geom::Point2D{pos.x, pos.y}, geom::Point2D{end_x, end_y},
-        0.6  
-    };
+    return {geom::Point2D{pos.x, pos.y}, geom::Point2D{end_x, end_y}, 0.6};
   }
 
  private:
-  const std::vector<model::LostObject>& items_;
-  const std::vector<model::Dog*>& dogs_;
+  const std::vector<::model::LostObject>& items_;
+  const std::vector<::model::Dog*>& dogs_;
   double dt_;
 };
 
-void ProcessGathering(model::Map& map, double dt,
-                      std::unordered_map<int, model::LostObject>& lost_objects,
-                      std::vector<int>& items_to_remove) {
+void ProcessGathering(
+    ::model::Map& map, double dt,
+    std::unordered_map<int, ::model::LostObject>& lost_objects,
+    std::vector<int>& items_to_remove) {
   auto& dogs = map.GetDogsMutable();
 
   if (dogs.empty() || lost_objects.empty()) return;
 
-  std::vector<model::Dog*> dog_ptrs;
-  std::vector<model::LostObject> item_list;
+  std::vector<::model::Dog*> dog_ptrs;
+  std::vector<::model::LostObject> item_list;
   std::unordered_map<int, size_t> item_index_map;
 
   for (auto& dog : dogs) {
@@ -350,8 +360,8 @@ void ProcessGathering(model::Map& map, double dt,
 }
 
 void UpdateDogsPositionAndGather(
-    model::Map& map, std::chrono::milliseconds delta_time,
-    std::unordered_map<int, model::LostObject>& lost_objects) {
+    ::model::Map& map, std::chrono::milliseconds delta_time,
+    std::unordered_map<int, ::model::LostObject>& lost_objects) {
   for (auto& dog : map.GetDogsMutable()) {
     MoveDogOnRoad(dog, map, delta_time);
   }
@@ -369,7 +379,7 @@ void UpdateDogsPositionAndGather(
         auto& bag = dog.GetBagMutable();
         auto bag_it = std::find_if(
             bag.begin(), bag.end(),
-            [id](const model::LostObject& obj) { return obj.id == id; });
+            [id](const ::model::LostObject& obj) { return obj.id == id; });
         if (bag_it != bag.end()) {
           int value = map.GetItemValue(bag_it->type);
           dog.AddScore(value);
