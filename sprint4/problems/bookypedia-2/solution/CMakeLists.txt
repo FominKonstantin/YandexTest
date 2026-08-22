@@ -4,11 +4,14 @@ project(bookypedia CXX)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-# Для Conan 2 используем find_package вместо conan_basic_setup
-find_package(Boost REQUIRED COMPONENTS system)
-find_package(Catch2 CONFIG REQUIRED)
-find_package(libpqxx CONFIG REQUIRED)
-find_package(PostgreSQL REQUIRED)
+# Это важно! CMakeDeps генерирует файлы, которые find_package использует
+# Убедитесь, что у вас есть эти строки
+
+# Поиск библиотек через Conan (CMakeDeps)
+find_package(Boost REQUIRED CONFIG)  # CONFIG важен!
+find_package(Catch2 REQUIRED CONFIG)
+find_package(libpqxx REQUIRED CONFIG)
+find_package(PostgreSQL REQUIRED CONFIG)
 
 set(THREADS_PREFER_PTHREAD_FLAG ON)
 find_package(Threads REQUIRED)
