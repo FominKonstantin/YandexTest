@@ -330,6 +330,7 @@ bool View::EditBook(std::istream& cmd_input) const {
     } else {
       output_ << "Enter tags (current tags: none):" << std::endl;
     }
+
     std::getline(input_, tags_str);
     auto new_tags = NormalizeTags(tags_str);
     if (new_tags.empty() && !current_tags.empty()) {
