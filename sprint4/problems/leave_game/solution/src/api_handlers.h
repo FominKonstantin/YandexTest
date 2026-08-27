@@ -253,127 +253,6 @@ void HandleGameStateRequest(const http::request<http::string_body>& req,
   send(std::move(response));
 }
 
-      // Форматируем playTime: если целое число, без десятичных
-template <typename Body, typename Allocator, typename Send>
-void HandlePlayerAction(
-    http::request<Body, http::basic_fields<Allocator>>&& req, model::Game& game,
-    model::Players& players, Send&& send) {
-  if (req.method() != http::verb::post) {
-    response_helpers::SendErrorResponseWithAllow(
-        std::forward<Send>(send), http::status::method_not_allowed,
-        "invalidMethod", "Invalid method", "POST");
-    return;
-  }
-
-  auto content_type_it = req.find(http::field::content_type);
-  if (content_type_it == req.end() ||
-      std::string(content_type_it->value()) != "application/json") {
-    response_helpers::SendErrorResponse(
-        std::forward<Send>(send), http::status::bad_request, "invalidArgument",
-        "Invalid content type");
-    return;
-  }
-
-  auto auth_it = req.find(http::field::authorization);
-  if (auth_it == req.end()) {
-    response_helpers::SendErrorResponse(
-        std::forward<Send>(send), http::status::unauthorized, "invalidToken",
-        "Authorization header missing");
-    return;
-  }
-
-  std::string auth_value = std::string(auth_it->value());
-  const std::string prefix = "Bearer ";
-  if (auth_value.size() < prefix.size() ||
-      auth_value.substr(0, prefix.size()) != prefix) {
-    response_helpers::SendErrorResponse(
-        std::forward<Send>(send), http::status::unauthorized, "invalidToken",
-        "Invalid authorization header");
-    return;
-  }
-
-  std::string token_str = auth_value.substr(prefix.size());
-  model::Token token(token_str);
-
-  auto player_ptr = players.FindPlayerByToken(token);
-  if (!player_ptr) {
-    response_helpers::SendErrorResponse(
-        std::forward<Send>(send), http::status::unauthorized, "unknownToken",
-        "Player token not found");
-    return;
-  }
-
-  // ===== ДОБАВЛЕННАЯ ПРОВЕРКА =====
-  const model::Player* player = player_ptr.get();
-  if (!player) {
-    response_helpers::SendErrorResponse(std::forward<Send>(send),
-                                        http::status::unauthorized,
-                                        "unknownToken", "Player not found");
-    return;
-  }
-  // ===== КОНЕЦ ПРОВЕРКИ =====
-
-  try {
-    boost::json::value json_value = boost::json::parse(req.body());
-    if (!json_value.is_object()) {
-      throw std::runtime_error("Invalid JSON format");
-    }
-
-    auto& json_obj = json_value.as_object();
-    if (!json_obj.contains("move") || !json_obj["move"].is_string()) {
-      throw std::runtime_error("Missing or invalid 'move' field");
-    }
-
-    std::string move_direction = json_obj["move"].as_string().c_str();
-
-    model::Dog* dog = const_cast<model::Player*>(player)->GetDog(&game);
-    if (!dog) {
-      throw std::runtime_error("Dog not found");
-    }
-
-    const model::Map* map = game.FindMap(player->GetMapId());
-    if (!map) {
-      throw std::runtime_error("Map not found");
-    }
-
-    double speed = map->GetDogSpeed();
-
-    if (move_direction == "L") {
-      dog->SetSpeed(-speed, 0);
-      dog->SetDirection(model::Dog::Direction::WEST);
-    } else if (move_direction == "R") {
-      dog->SetSpeed(speed, 0);
-      dog->SetDirection(model::Dog::Direction::EAST);
-    } else if (move_direction == "U") {
-      dog->SetSpeed(0, -speed);
-      dog->SetDirection(model::Dog::Direction::NORTH);
-    } else if (move_direction == "D") {
-      dog->SetSpeed(0, speed);
-      dog->SetDirection(model::Dog::Direction::SOUTH);
-    } else if (move_direction == "") {
-      dog->SetSpeed(0, 0);
-    } else {
-      throw std::runtime_error("Invalid move direction");
-    }
-
-    http::response<http::string_body> response{http::status::ok, 11};
-    response.set(http::field::content_type, "application/json");
-    response.set(http::field::cache_control, "no-cache");
-    response.body() = "{}";
-    response.prepare_payload();
-    send(std::move(response));
-
-  } catch (const boost::system::system_error& e) {
-    response_helpers::SendErrorResponse(
-        std::forward<Send>(send), http::status::bad_request, "invalidArgument",
-        "Failed to parse action");
-  } catch (const std::exception& e) {
-    response_helpers::SendErrorResponse(
-        std::forward<Send>(send), http::status::bad_request, "invalidArgument",
-        "Failed to parse action");
-  }
-}
-
 template <typename Body, typename Allocator, typename Send>
 void HandleTickRequest(http::request<Body, http::basic_fields<Allocator>>&& req,
                        model::Game& game, Send&& send) {
@@ -560,6 +439,18 @@ void HandleRecordsRequest(const http::request<http::string_body>& req,
     return;
   }
 
+  // ===== ДОБАВЛЕННАЯ ПРОВЕРКА =====
+  if (maxItems <= 0) {
+    http::response<http::string_body> response{http::status::ok, 11};
+    response.set(http::field::content_type, "application/json");
+    response.set(http::field::cache_control, "no-cache");
+    response.body() = "[]";
+    response.prepare_payload();
+    send(std::move(response));
+    return;
+  }
+  // ===== КОНЕЦ =====
+
   try {
     auto entries = record_manager.GetRecords(start, maxItems);
 
@@ -569,6 +460,7 @@ void HandleRecordsRequest(const http::request<http::string_body>& req,
       obj["name"] = entry.name;
       obj["score"] = entry.score;
 
+      // Форматируем playTime: если целое число, без десятичных
       if (entry.play_time_seconds == std::floor(entry.play_time_seconds)) {
         obj["playTime"] = static_cast<int64_t>(entry.play_time_seconds);
       } else {
