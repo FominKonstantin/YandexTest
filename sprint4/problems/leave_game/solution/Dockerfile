@@ -30,4 +30,6 @@ COPY ./static /app/static
 COPY ./data /app/data
 WORKDIR /app
 
+RUN ulimit -s unlimited
+
 ENTRYPOINT ["/app/game_server"]
