@@ -7,6 +7,20 @@
 
 namespace json_loader {
 
+    static double GetNumberAsDouble(const boost::json::object& obj,
+                                const std::string& key) {
+  const auto& value = obj.at(key);
+  if (value.is_int64()) {
+    return static_cast<double>(value.as_int64());
+  } else if (value.is_uint64()) {
+    return static_cast<double>(value.as_uint64());
+  } else if (value.is_double()) {
+    return value.as_double();
+  } else {
+    throw std::runtime_error("Expected numeric value for key: " + key);
+  }
+}
+
 static std::string ReadFile(const std::filesystem::path& json_path) {
   std::ifstream file(json_path);
   if (!file.is_open()) {
@@ -22,15 +36,15 @@ static model::Road LoadRoad(const boost::json::object& road_obj) {
   try {
     if (road_obj.contains("x0") && road_obj.contains("y0") &&
         road_obj.contains("x1")) {
-      double x0 = static_cast<double>(road_obj.at("x0").as_int64());
-      double y0 = static_cast<double>(road_obj.at("y0").as_int64());
-      double x1 = static_cast<double>(road_obj.at("x1").as_int64());
+      double x0 = GetNumberAsDouble(road_obj, "x0");
+      double y0 = GetNumberAsDouble(road_obj, "y0");
+      double x1 = GetNumberAsDouble(road_obj, "x1");
       return model::Road(model::Road::HORIZONTAL, {x0, y0}, x1);
     } else if (road_obj.contains("x0") && road_obj.contains("y0") &&
                road_obj.contains("y1")) {
-      double x0 = static_cast<double>(road_obj.at("x0").as_int64());
-      double y0 = static_cast<double>(road_obj.at("y0").as_int64());
-      double y1 = static_cast<double>(road_obj.at("y1").as_int64());
+      double x0 = GetNumberAsDouble(road_obj, "x0");
+      double y0 = GetNumberAsDouble(road_obj, "y0");
+      double y1 = GetNumberAsDouble(road_obj, "y1");
       return model::Road(model::Road::VERTICAL, {x0, y0}, y1);
     }
     throw std::runtime_error("Invalid road definition");
@@ -41,8 +55,8 @@ static model::Road LoadRoad(const boost::json::object& road_obj) {
 
 static model::Building LoadBuilding(const boost::json::object& building_obj) {
   try {
-    double x = static_cast<double>(building_obj.at("x").as_int64());
-    double y = static_cast<double>(building_obj.at("y").as_int64());
+    double x = GetNumberAsDouble(building_obj, "x");
+    double y = GetNumberAsDouble(building_obj, "y");
     model::Dimension w = building_obj.at("w").as_int64();
     model::Dimension h = building_obj.at("h").as_int64();
     model::Rectangle rect{{x, y}, {w, h}};
@@ -56,8 +70,8 @@ static model::Building LoadBuilding(const boost::json::object& building_obj) {
 static model::Office LoadOffice(const boost::json::object& office_obj) {
   try {
     std::string office_id = office_obj.at("id").as_string().c_str();
-    double x = static_cast<double>(office_obj.at("x").as_int64());
-    double y = static_cast<double>(office_obj.at("y").as_int64());
+    double x = GetNumberAsDouble(office_obj, "x");
+    double y = GetNumberAsDouble(office_obj, "y");
     model::Dimension offset_x = office_obj.at("offsetX").as_int64();
     model::Dimension offset_y = office_obj.at("offsetY").as_int64();
     return model::Office(model::Office::Id(office_id), {x, y},
