@@ -237,7 +237,7 @@ int main(int argc, const char* argv[]) {
       }
     }
 
-    const unsigned num_threads = std::thread::hardware_concurrency();
+    const unsigned num_threads = 1;
     net::io_context ioc(num_threads);
 
     auto api_strand = net::make_strand(ioc);
