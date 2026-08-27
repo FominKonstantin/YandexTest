@@ -4,11 +4,12 @@
 #include <chrono>
 #include <functional>
 #include <memory>
+#include <thread>  // <-- ДОБАВИТЬ ЭТУ СТРОКУ
 
 namespace net = boost::asio;
 
 class Ticker : public std::enable_shared_from_this<Ticker> {
-public:
+ public:
   using Strand = net::strand<net::io_context::executor_type>;
   using Handler = std::function<void(std::chrono::milliseconds delta)>;
 
@@ -16,7 +17,7 @@ public:
       : strand_{strand},
         period_{period},
         handler_{std::move(handler)},
-        timer_{strand_} {} 
+        timer_{strand_} {}
 
   void Start() {
     last_tick_ = Clock::now();
@@ -31,7 +32,7 @@ public:
     });
   }
 
-private:
+ private:
   void ScheduleTick() {
     assert(strand_.running_in_this_thread());
     timer_.expires_after(period_);
@@ -49,6 +50,7 @@ private:
       last_tick_ = this_tick;
       try {
         handler_(delta);
+        std::this_thread::sleep_for(milliseconds(1));
       } catch (...) {
       }
       ScheduleTick();
@@ -57,9 +59,9 @@ private:
 
   using Clock = std::chrono::steady_clock;
 
-  Strand strand_;                       
-  std::chrono::milliseconds period_;          
-  Handler handler_;                           
-  net::steady_timer timer_;                   
-  std::chrono::steady_clock::time_point last_tick_;  
+  Strand strand_;
+  std::chrono::milliseconds period_;
+  Handler handler_;
+  net::steady_timer timer_;
+  std::chrono::steady_clock::time_point last_tick_;
 };
