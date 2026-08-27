@@ -253,6 +253,7 @@ void HandleGameStateRequest(const http::request<http::string_body>& req,
   send(std::move(response));
 }
 
+      // Форматируем playTime: если целое число, без десятичных
 template <typename Body, typename Allocator, typename Send>
 void HandlePlayerAction(
     http::request<Body, http::basic_fields<Allocator>>&& req, model::Game& game,
@@ -301,7 +302,16 @@ void HandlePlayerAction(
         "Player token not found");
     return;
   }
+
+  // ===== ДОБАВЛЕННАЯ ПРОВЕРКА =====
   const model::Player* player = player_ptr.get();
+  if (!player) {
+    response_helpers::SendErrorResponse(std::forward<Send>(send),
+                                        http::status::unauthorized,
+                                        "unknownToken", "Player not found");
+    return;
+  }
+  // ===== КОНЕЦ ПРОВЕРКИ =====
 
   try {
     boost::json::value json_value = boost::json::parse(req.body());
@@ -559,7 +569,6 @@ void HandleRecordsRequest(const http::request<http::string_body>& req,
       obj["name"] = entry.name;
       obj["score"] = entry.score;
 
-      // Форматируем playTime: если целое число, без десятичных
       if (entry.play_time_seconds == std::floor(entry.play_time_seconds)) {
         obj["playTime"] = static_cast<int64_t>(entry.play_time_seconds);
       } else {
