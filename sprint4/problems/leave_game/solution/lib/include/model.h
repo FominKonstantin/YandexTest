@@ -1,4 +1,6 @@
 #pragma once
+
+#include <algorithm>
 #include <random>
 #include <string>
 #include <unordered_map>
@@ -202,6 +204,12 @@ class Map {
   void AddOffice(Office office);
 
   void AddDog(Dog dog) { dogs_.push_back(std::move(dog)); }
+
+  void RemoveDog(Dog::Id id) {
+    dogs_.erase(std::remove_if(dogs_.begin(), dogs_.end(),
+                               [id](const Dog& dog) { return dog.GetId() == id; }),
+                dogs_.end());
+  }
 
   Dog* FindDog(Dog::Id id) {
     for (auto& dog : dogs_) {

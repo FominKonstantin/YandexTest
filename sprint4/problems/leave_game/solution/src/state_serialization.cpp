@@ -30,6 +30,7 @@ boost::json::value SerializeGameState(const GameState& state) {
     player_json["name"] = player.name;
     player_json["map_id"] = player.map_id;
     player_json["dog_id"] = player.dog_id;
+    player_json["join_time_ms"] = player.join_time_ms.count();
     players_arr.push_back(player_json);
   }
   result["players"] = players_arr;
@@ -107,6 +108,12 @@ GameState DeserializeGameState(const boost::json::value& json) {
 
       player.map_id = player_obj.at("map_id").as_string().c_str();
       player.dog_id = player_obj.at("dog_id").as_int64();
+      if (player_obj.contains("join_time_ms")) {
+        player.join_time_ms = std::chrono::milliseconds(
+            player_obj.at("join_time_ms").as_int64());
+      } else {
+        player.join_time_ms = state.game_time_ms;
+      }
       state.players.push_back(player);
     }
   }
@@ -201,6 +208,7 @@ GameState ToGameState(const model::Game& game, const model::Players& players) {
     player_state.name = player->GetName();
     player_state.map_id = *player->GetMapId();
     player_state.dog_id = *player->GetDogId();
+    player_state.join_time_ms = player->GetJoinTime();
 
     auto token_opt = players.GetTokenByPlayerId(player->GetId());
     if (token_opt) {
@@ -213,6 +221,7 @@ GameState ToGameState(const model::Game& game, const model::Players& players) {
   }
 
   state.next_loot_id = game.GetNextLootId();
+  state.game_time_ms = game.GetGameTime();
 
   std::cout << "ToGameState: saved " << state.players.size() << " players"
             << std::endl;
@@ -281,7 +290,8 @@ void RestoreGameState(model::Game& game, model::Players& players,
     try {
       players.RestorePlayerWithToken(
           player_state.token, player_state.player_id, player_state.name,
-          model::Map::Id(player_state.map_id), player_state.dog_id);
+          model::Map::Id(player_state.map_id), player_state.dog_id,
+          player_state.join_time_ms);
     } catch (const std::exception& e) {
       std::cerr << "Error restoring player " << player_state.player_id << ": "
                 << e.what() << std::endl;

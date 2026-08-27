@@ -1,9 +1,7 @@
 #pragma once
 
 #include <chrono>
-#include <memory>
 #include <optional>
-#include <pqxx/pqxx>
 #include <string>
 #include <vector>
 
@@ -29,7 +27,7 @@ class RecordManager {
   size_t GetTotalCount() const;
 
  private:
-  std::unique_ptr<pqxx::connection> connection_;
+  std::string db_url_;
 };
 
 }  // namespace records

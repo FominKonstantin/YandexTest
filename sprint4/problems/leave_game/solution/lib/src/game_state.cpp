@@ -14,15 +14,39 @@ namespace game_state {
 void UpdateDogsPositionAndGather(
     ::model::Map& map, std::chrono::milliseconds delta_time,
     std::unordered_map<int, ::model::LostObject>& lost_objects,
-    std::chrono::milliseconds /*current_game_time*/,
+    std::chrono::milliseconds current_game_time,
     std::chrono::milliseconds /*retirement_time*/,
     std::unordered_map<
         ::model::Dog::Id, DogInactivityInfo,
-        util::TaggedHasher<::model::Dog::Id>>& /*inactivity_info*/,
+        util::TaggedHasher<::model::Dog::Id>>& inactivity_info,
     std::vector<std::shared_ptr<::model::Player>>& /*players_to_retire*/) {
-  // Двигаем собак
+  const auto tick_start = current_game_time - delta_time;
+
+  // Двигаем собак и фиксируем точный момент остановки у края дороги.
   for (auto& dog : map.GetDogsMutable()) {
+    const auto old_pos = dog.GetPosition();
+    const double old_vx = dog.GetSpeedX();
+    const double old_vy = dog.GetSpeedY();
+    const bool was_moving = old_vx != 0.0 || old_vy != 0.0;
+
     MoveDogOnRoad(dog, map, delta_time);
+
+    const bool is_stopped = dog.GetSpeedX() == 0.0 && dog.GetSpeedY() == 0.0;
+    if (was_moving && is_stopped) {
+      const auto new_pos = dog.GetPosition();
+      const double distance =
+          std::hypot(new_pos.x - old_pos.x, new_pos.y - old_pos.y);
+      const double speed = std::hypot(old_vx, old_vy);
+      const double tick_seconds = delta_time.count() / 1000.0;
+      const double movement_seconds =
+          speed > 0.0 ? std::clamp(distance / speed, 0.0, tick_seconds) : 0.0;
+      const auto movement_ms = std::chrono::milliseconds(
+          static_cast<int64_t>(std::llround(movement_seconds * 1000.0)));
+
+      auto& info = inactivity_info[dog.GetId()];
+      info.is_idle = true;
+      info.idle_start_time = tick_start + movement_ms;
+    }
   }
 
   // Сбор предметов

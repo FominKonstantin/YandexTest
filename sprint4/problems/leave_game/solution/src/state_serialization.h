@@ -37,6 +37,7 @@ struct PlayerState {
   std::string name;  // Добавлено поле для имени
   std::string map_id;
   int dog_id;
+  std::chrono::milliseconds join_time_ms = std::chrono::milliseconds::zero();
 };
 
 // Структура для сериализации всей игры

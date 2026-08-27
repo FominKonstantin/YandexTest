@@ -59,7 +59,7 @@ class Players {
   // Восстановить игрока из сохраненного состояния
   void RestorePlayerWithToken(const std::string& token_str, int player_id,
                               const std::string& name, const Map::Id& map_id,
-                              int dog_id) {
+                              int dog_id, std::chrono::milliseconds join_time) {
     Token token(token_str);
     PlayerId id(player_id);
 
@@ -75,7 +75,7 @@ class Players {
       throw std::runtime_error("Dog not found during restore");
     }
 
-    auto player = std::make_shared<Player>(id, name, map_id, Dog::Id(dog_id));
+    auto player = std::make_shared<Player>(id, name, map_id, Dog::Id(dog_id), join_time);
     players_by_id_.emplace(id, player);
     token_to_player_.emplace(token, id);
   }
@@ -112,7 +112,7 @@ class Players {
     PlayerId id(next_player_id_++);
     Token token = token_generator_.GenerateToken();
 
-    auto player = std::make_shared<Player>(id, name, map_id, dog_id);
+    auto player = std::make_shared<Player>(id, name, map_id, dog_id, game_->GetGameTime());
 
     players_by_id_.emplace(id, player);
     token_to_player_.emplace(token, id);

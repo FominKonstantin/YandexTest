@@ -78,29 +78,32 @@ class RequestHandler {
   RequestHandler& operator=(const RequestHandler&) = delete;
 
   void Tick(std::chrono::milliseconds delta_time) {
-    auto current_time = game_.GetGameTime();
-    current_time += delta_time;
+    const auto previous_time = game_.GetGameTime();
+    const auto current_time = previous_time + delta_time;
     game_.SetGameTime(current_time);
 
-    // Проверяем бездействие собак и отправляем на покой
-    CheckInactiveDogs(current_time);
+    // Сначала исключаем собак, чей срок бездействия истёк внутри этого тика.
+    CheckInactiveDogs(current_time, previous_time);
+    for (const auto& player_ptr : players_to_retire_) {
+      RetirePlayer(player_ptr);
+    }
+    players_to_retire_.clear();
 
-    // Двигаем собак и собираем предметы
+    // Обновляем оставшихся собак и игровое окружение.
     for (auto& map : game_.GetMaps()) {
       game_state::UpdateDogsPositionAndGather(
           map, delta_time, game_.GetLostObjectsMutable(), current_time,
           retirement_time_, inactivity_info_, players_to_retire_);
     }
 
-    // Обрабатываем уход на покой
+    // Собака могла остановиться у края дороги внутри текущего тика.
+    CheckInactiveDogs(current_time, previous_time);
     for (const auto& player_ptr : players_to_retire_) {
       RetirePlayer(player_ptr);
     }
     players_to_retire_.clear();
 
     game_.UpdateTime(delta_time);
-
-    // Сохраняем состояние после тика
     SaveState();
   }
 
@@ -191,7 +194,20 @@ class RequestHandler {
       if (config_json_.is_object()) {
         const auto& obj = config_json_.as_object();
         if (obj.contains("dogRetirementTime")) {
-          double retirement_seconds = obj.at("dogRetirementTime").as_double();
+          const auto& value = obj.at("dogRetirementTime");
+          double retirement_seconds = 60.0;
+          if (value.is_double()) {
+            retirement_seconds = value.as_double();
+          } else if (value.is_int64()) {
+            retirement_seconds = static_cast<double>(value.as_int64());
+          } else if (value.is_uint64()) {
+            retirement_seconds = static_cast<double>(value.as_uint64());
+          } else {
+            throw std::runtime_error("dogRetirementTime must be a number");
+          }
+          if (retirement_seconds < 0.0) {
+            throw std::runtime_error("dogRetirementTime must be non-negative");
+          }
           retirement_time_ = std::chrono::milliseconds(
               static_cast<int64_t>(retirement_seconds * 1000));
         }
@@ -248,7 +264,8 @@ class RequestHandler {
     return model::Token(token_str);
   }
 
-  void CheckInactiveDogs(std::chrono::milliseconds current_time) {
+  void CheckInactiveDogs(std::chrono::milliseconds current_time,
+                         std::chrono::milliseconds previous_time) {
     // Проверяем всех игроков на всех картах
     for (auto* player : players_.GetAllPlayers()) {
       if (!player) continue;
@@ -260,9 +277,10 @@ class RequestHandler {
       bool is_moving = (dog->GetSpeedX() != 0.0 || dog->GetSpeedY() != 0.0);
 
       if (!is_moving && !info.is_idle) {
-        // Начало бездействия
+        // Если собака уже стояла к началу тика, бездействие началось не позже
+        // начала тика. Для только что вошедшего игрока учитываем время входа.
         info.is_idle = true;
-        info.idle_start_time = current_time;
+        info.idle_start_time = std::max(previous_time, player->GetJoinTime());
       } else if (is_moving && info.is_idle) {
         // Прервано бездействие
         info.is_idle = false;
@@ -288,8 +306,18 @@ class RequestHandler {
     auto* dog = player_ptr->GetDog(&game_);
     if (!dog) return;
 
-    // Вычисляем время игры в секундах
-    double play_time_seconds = game_.GetGameTime().count() / 1000.0;
+    const auto dog_id = dog->GetId();
+    const auto map_id = player_ptr->GetMapId();
+
+    // Записываем момент фактического ухода, а не конец потенциально большого тика.
+    auto retirement_moment = game_.GetGameTime();
+    if (auto it = inactivity_info_.find(dog_id); it != inactivity_info_.end() &&
+        it->second.is_idle) {
+      retirement_moment = it->second.idle_start_time + retirement_time_;
+    }
+    const auto play_time = retirement_moment - player_ptr->GetJoinTime();
+    const double play_time_seconds =
+        std::max<int64_t>(0, play_time.count()) / 1000.0;
 
     // Сохраняем рекорд
     try {
@@ -303,11 +331,56 @@ class RequestHandler {
                 << std::endl;
     }
 
-    // Удаляем игрока
+    // Токен перестаёт быть валидным вместе с игроком, а собака исчезает с карты.
     players_.RemovePlayer(player_ptr->GetId());
+    if (auto* map = game_.FindMap(map_id)) {
+      map->RemoveDog(dog_id);
+    }
+    inactivity_info_.erase(dog_id);
+  }
 
-    // Удаляем информацию о бездействии
-    inactivity_info_.erase(dog->GetId());
+  template <typename Send>
+  void HandleManualTick(http::request<http::string_body>&& req, Send&& send) {
+    if (req.method() != http::verb::post) {
+      response_helpers::SendErrorResponseWithAllow(
+          std::forward<Send>(send), http::status::method_not_allowed,
+          "invalidMethod", "Only POST method is expected", "POST");
+      return;
+    }
+
+    auto content_type_it = req.find(http::field::content_type);
+    if (content_type_it == req.end() ||
+        std::string(content_type_it->value()) != "application/json") {
+      response_helpers::SendErrorResponse(
+          std::forward<Send>(send), http::status::bad_request,
+          "invalidArgument", "Invalid Content-Type");
+      return;
+    }
+
+    try {
+      const auto json = boost::json::parse(req.body());
+      if (!json.is_object() || !json.as_object().contains("timeDelta") ||
+          !json.as_object().at("timeDelta").is_int64()) {
+        throw std::runtime_error("Missing or invalid 'timeDelta' field");
+      }
+      const auto delta = json.as_object().at("timeDelta").as_int64();
+      if (delta < 0) {
+        throw std::runtime_error("timeDelta must be non-negative");
+      }
+
+      Tick(std::chrono::milliseconds(delta));
+
+      http::response<http::string_body> response{http::status::ok, 11};
+      response.set(http::field::content_type, "application/json");
+      response.set(http::field::cache_control, "no-cache");
+      response.body() = "{}";
+      response.prepare_payload();
+      send(std::move(response));
+    } catch (const std::exception& e) {
+      response_helpers::SendErrorResponse(
+          std::forward<Send>(send), http::status::bad_request,
+          "invalidArgument", e.what());
+    }
   }
 
   template <typename Body, typename Allocator, typename Send>
@@ -315,8 +388,9 @@ class RequestHandler {
       http::request<Body, http::basic_fields<Allocator>>&& req, Send&& send) {
     std::string target(req.target());
 
-    // Обработка /api/v1/game/records
-    if (target.rfind(std::string(endpoints::GAME_RECORDS), 0) == 0) {
+    // Обработка /api/v1/game/records и его query-параметров.
+    const std::string records_path(endpoints::GAME_RECORDS);
+    if (target == records_path || target.rfind(records_path + "?", 0) == 0) {
       if constexpr (std::is_same_v<Body, http::string_body>) {
         api_handlers::HandleRecordsRequest(req, record_manager_,
                                            std::forward<Send>(send));
@@ -336,10 +410,7 @@ class RequestHandler {
         return;
       }
       if constexpr (std::is_same_v<Body, http::string_body>) {
-        api_handlers::HandleTickRequest(std::move(req), game_,
-                                        std::forward<Send>(send));
-        // Сохраняем состояние ПОСЛЕ тика
-        SaveState();
+        HandleManualTick(std::move(req), std::forward<Send>(send));
       } else {
         response_helpers::SendErrorResponse(
             std::forward<Send>(send), http::status::bad_request,
