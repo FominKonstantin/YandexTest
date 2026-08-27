@@ -80,70 +80,6 @@ double ClampPosition(double value, double min, double max) {
   return std::max(min, std::min(max, value));
 }
 
-std::optional<::model::Road> FindRoadContainingPoint(const ::model::Map& map,
-                                                     double x, double y,
-                                                     bool prefer_vertical) {
-  const auto& roads = map.GetRoads();
-  const double EPSILON = 0.001;
-
-  for (const auto& road : roads) {
-    if (prefer_vertical && !road.IsVertical()) continue;
-    if (!prefer_vertical && !road.IsHorizontal()) continue;
-
-    if (road.IsHorizontal()) {
-      double min_x = std::min(road.GetStart().x, road.GetEnd().x);
-      double max_x = std::max(road.GetStart().x, road.GetEnd().x);
-      double road_y = road.GetStart().y;
-
-      if (y >= road_y - ROAD_HALF_WIDTH - EPSILON &&
-          y <= road_y + ROAD_HALF_WIDTH + EPSILON &&
-          x >= min_x - ROAD_HALF_WIDTH - EPSILON &&
-          x <= max_x + ROAD_HALF_WIDTH + EPSILON) {
-        return road;
-      }
-    } else {  // Vertical
-      double min_y = std::min(road.GetStart().y, road.GetEnd().y);
-      double max_y = std::max(road.GetStart().y, road.GetEnd().y);
-      double road_x = road.GetStart().x;
-
-      if (x >= road_x - ROAD_HALF_WIDTH - EPSILON &&
-          x <= road_x + ROAD_HALF_WIDTH + EPSILON &&
-          y >= min_y - ROAD_HALF_WIDTH - EPSILON &&
-          y <= max_y + ROAD_HALF_WIDTH + EPSILON) {
-        return road;
-      }
-    }
-  }
-
-  for (const auto& road : roads) {
-    if (road.IsHorizontal()) {
-      double min_x = std::min(road.GetStart().x, road.GetEnd().x);
-      double max_x = std::max(road.GetStart().x, road.GetEnd().x);
-      double road_y = road.GetStart().y;
-
-      if (y >= road_y - ROAD_HALF_WIDTH - EPSILON &&
-          y <= road_y + ROAD_HALF_WIDTH + EPSILON &&
-          x >= min_x - ROAD_HALF_WIDTH - EPSILON &&
-          x <= max_x + ROAD_HALF_WIDTH + EPSILON) {
-        return road;
-      }
-    } else {  // Vertical
-      double min_y = std::min(road.GetStart().y, road.GetEnd().y);
-      double max_y = std::max(road.GetStart().y, road.GetEnd().y);
-      double road_x = road.GetStart().x;
-
-      if (x >= road_x - ROAD_HALF_WIDTH - EPSILON &&
-          x <= road_x + ROAD_HALF_WIDTH + EPSILON &&
-          y >= min_y - ROAD_HALF_WIDTH - EPSILON &&
-          y <= max_y + ROAD_HALF_WIDTH + EPSILON) {
-        return road;
-      }
-    }
-  }
-
-  return std::nullopt;
-}
-
 void MoveDogOnRoad(::model::Dog& dog, const ::model::Map& map,
                    std::chrono::milliseconds delta_time) {
   auto pos = dog.GetPosition();
@@ -153,6 +89,14 @@ void MoveDogOnRoad(::model::Dog& dog, const ::model::Map& map,
   if (vx == 0.0 && vy == 0.0) {
     return;
   }
+
+  // ===== ПРОВЕРКА НА ПУСТЫЕ ДОРОГИ =====
+  const auto& roads = map.GetRoads();
+  if (roads.empty()) {
+    dog.SetSpeed(0, 0);
+    return;
+  }
+  // ===== КОНЕЦ =====
 
   double cur_x = pos.x;
   double cur_y = pos.y;
@@ -166,52 +110,25 @@ void MoveDogOnRoad(::model::Dog& dog, const ::model::Map& map,
   if (!current_road) {
     const auto& roads = map.GetRoads();
     if (roads.empty()) {
-      // Нет дорог - останавливаем собаку
       dog.SetSpeed(0, 0);
       return;
     }
 
-    // Ищем ближайшую дорогу
     const ::model::Road* target_road = nullptr;
-    double min_distance = std::numeric_limits<double>::max();
-
     for (const auto& road : roads) {
-      double road_x = 0.0, road_y = 0.0;
-      if (road.IsHorizontal()) {
-        road_y = road.GetStart().y;
-        double min_x = std::min(road.GetStart().x, road.GetEnd().x);
-        double max_x = std::max(road.GetStart().x, road.GetEnd().x);
-        // Проверяем, находится ли x в пределах дороги
-        if (cur_x >= min_x && cur_x <= max_x) {
-          road_x = cur_x;
-        } else {
-          road_x = (cur_x < min_x) ? min_x : max_x;
-        }
-      } else {  // Vertical
-        road_x = road.GetStart().x;
-        double min_y = std::min(road.GetStart().y, road.GetEnd().y);
-        double max_y = std::max(road.GetStart().y, road.GetEnd().y);
-        if (cur_y >= min_y && cur_y <= max_y) {
-          road_y = cur_y;
-        } else {
-          road_y = (cur_y < min_y) ? min_y : max_y;
-        }
-      }
-
-      double dist = std::hypot(cur_x - road_x, cur_y - road_y);
-      if (dist < min_distance) {
-        min_distance = dist;
+      if (prefer_vertical && road.IsVertical()) {
         target_road = &road;
+        break;
+      } else if (!prefer_vertical && road.IsHorizontal()) {
+        target_road = &road;
+        break;
       }
     }
 
     if (!target_road) {
-      // Если всё ещё нет дороги - останавливаем собаку
-      dog.SetSpeed(0, 0);
-      return;
+      target_road = &roads[0];
     }
 
-    // Размещаем собаку на ближайшей дороге
     if (target_road->IsVertical()) {
       dog.SetPosition({target_road->GetStart().x, cur_y});
     } else {
@@ -221,8 +138,6 @@ void MoveDogOnRoad(::model::Dog& dog, const ::model::Map& map,
     current_road = FindRoadContainingPoint(
         map, dog.GetPosition().x, dog.GetPosition().y, prefer_vertical);
     if (!current_road) {
-      // Если не удалось разместить на дороге - останавливаем
-      dog.SetSpeed(0, 0);
       return;
     }
   }
@@ -281,7 +196,7 @@ void MoveDogOnRoad(::model::Dog& dog, const ::model::Map& map,
       }
     }
 
-  } else {  // Vertical
+  } else {
     double road_min_y =
         std::min(current_road->GetStart().y, current_road->GetEnd().y) -
         ROAD_HALF_WIDTH;
@@ -367,21 +282,22 @@ void ProcessGathering(
 
   if (dogs.empty() || lost_objects.empty()) return;
 
-  // Собираем указатели на собак
+  // ===== ОПТИМИЗАЦИЯ С РЕЗЕРВИРОВАНИЕМ ПАМЯТИ =====
   std::vector<::model::Dog*> dog_ptrs;
   dog_ptrs.reserve(dogs.size());
   for (auto& dog : dogs) {
     dog_ptrs.push_back(&dog);
   }
 
-  // Собираем предметы
   std::vector<::model::LostObject> item_list;
   item_list.reserve(lost_objects.size());
   for (const auto& [id, obj] : lost_objects) {
     item_list.push_back(obj);
   }
+  // ===== КОНЕЦ =====
 
   GatheringProvider provider(item_list, dog_ptrs, dt);
+
   auto events = collision_detector::FindGatherEvents(provider);
 
   if (events.empty()) return;
@@ -406,16 +322,13 @@ void ProcessGathering(
 
     int item_id = item_list[item_idx].id;
 
-    // Проверяем, не переполнена ли сумка
-    if (dog->IsBagFull(bag_capacity)) {
-      continue;
-    }
-
-    auto item_it = lost_objects.find(item_id);
-    if (item_it != lost_objects.end()) {
-      dog->AddToBag(item_it->second);
-      items_to_remove.push_back(item_id);
-      item_collected[item_idx] = true;
+    if (!dog->IsBagFull(bag_capacity)) {
+      auto item_it = lost_objects.find(item_id);
+      if (item_it != lost_objects.end()) {
+        dog->AddToBag(item_it->second);
+        items_to_remove.push_back(item_id);
+        item_collected[item_idx] = true;
+      }
     }
   }
 }

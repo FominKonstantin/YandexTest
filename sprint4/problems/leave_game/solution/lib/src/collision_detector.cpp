@@ -28,6 +28,12 @@ std::vector<GatheringEvent> FindGatherEvents(
   size_t items_count = provider.ItemsCount();
   size_t gatherers_count = provider.GatherersCount();
 
+  // ===== ДОБАВИТЬ ПРОВЕРКУ =====
+  if (items_count == 0 || gatherers_count == 0) {
+    return events;
+  }
+  // ===== КОНЕЦ =====
+
   for (size_t g = 0; g < gatherers_count; ++g) {
     Gatherer gatherer = provider.GetGatherer(g);
 
@@ -51,7 +57,7 @@ std::vector<GatheringEvent> FindGatherEvents(
         event.item_id = i;
         event.gatherer_id = g;
         event.sq_distance = result.sq_distance;
-        event.time = result.proj_ratio; 
+        event.time = result.proj_ratio;
         events.push_back(event);
       }
     }
