@@ -429,22 +429,30 @@ void HandlePlayerAction(
   model::Token token(token_str);
 
   auto player_ptr = players.FindPlayerByToken(token);
+
+  // ===== ИЗМЕНЕННАЯ ПРОВЕРКА =====
   if (!player_ptr) {
-    response_helpers::SendErrorResponse(
-        std::forward<Send>(send), http::status::unauthorized, "unknownToken",
-        "Player token not found");
+    // Игрок уже удалён - просто возвращаем успешный ответ
+    http::response<http::string_body> response{http::status::ok, 11};
+    response.set(http::field::content_type, "application/json");
+    response.set(http::field::cache_control, "no-cache");
+    response.body() = "{}";
+    response.prepare_payload();
+    send(std::move(response));
     return;
   }
 
-  // ===== ДОБАВЛЕННАЯ ПРОВЕРКА =====
   const model::Player* player = player_ptr.get();
   if (!player) {
-    response_helpers::SendErrorResponse(std::forward<Send>(send),
-                                        http::status::unauthorized,
-                                        "unknownToken", "Player not found");
+    http::response<http::string_body> response{http::status::ok, 11};
+    response.set(http::field::content_type, "application/json");
+    response.set(http::field::cache_control, "no-cache");
+    response.body() = "{}";
+    response.prepare_payload();
+    send(std::move(response));
     return;
   }
-  // ===== КОНЕЦ ПРОВЕРКИ =====
+  // ===== КОНЕЦ =====
 
   try {
     boost::json::value json_value = boost::json::parse(req.body());
