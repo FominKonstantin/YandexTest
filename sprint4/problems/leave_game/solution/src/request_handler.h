@@ -264,33 +264,41 @@ class RequestHandler {
     return model::Token(token_str);
   }
 
-  void CheckInactiveDogs(std::chrono::milliseconds current_time,
+void CheckInactiveDogs(std::chrono::milliseconds current_time,
                          std::chrono::milliseconds previous_time) {
-    // Проверяем всех игроков на всех картах
-    for (auto* player : players_.GetAllPlayers()) {
+    auto all_players = players_.GetAllPlayers();
+    if (all_players.empty()) return;
+
+    for (auto* player : all_players) {
       if (!player) continue;
 
       auto* dog = player->GetDog(&game_);
       if (!dog) continue;
 
+      // Проверяем, что карта существует
+      auto* map = game_.FindMap(player->GetMapId());
+      if (!map) continue;
+
+      // Проверяем, что собака существует на карте
+      auto* map_dog = map->FindDog(dog->GetId());
+      if (!map_dog) {
+        // Собака не найдена - игрок уже удалён
+        continue;
+      }
+
       auto& info = inactivity_info_[dog->GetId()];
       bool is_moving = (dog->GetSpeedX() != 0.0 || dog->GetSpeedY() != 0.0);
 
       if (!is_moving && !info.is_idle) {
-        // Если собака уже стояла к началу тика, бездействие началось не позже
-        // начала тика. Для только что вошедшего игрока учитываем время входа.
         info.is_idle = true;
         info.idle_start_time = std::max(previous_time, player->GetJoinTime());
       } else if (is_moving && info.is_idle) {
-        // Прервано бездействие
         info.is_idle = false;
       }
 
-      // Проверяем, не превышено ли время бездействия
       if (info.is_idle) {
         auto idle_duration = current_time - info.idle_start_time;
         if (idle_duration >= retirement_time_) {
-          // Добавляем игрока в список на пенсию
           auto player_ptr = players_.FindPlayerById(player->GetId());
           if (player_ptr) {
             players_to_retire_.push_back(player_ptr);
