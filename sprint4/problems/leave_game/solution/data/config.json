@@ -12,21 +12,11 @@
       "name": "Map 1",
       "lootTypes": [
         {
-          "name": "key",
-          "file": "assets/key.obj",
-          "type": "obj",
-          "rotation": 90,
-          "color" : "#338844",
-          "scale": 0.03,
+          "type": 0,
           "value": 10
         },
         {
-          "name": "wallet",
-          "file": "assets/wallet.obj",
-          "type": "obj",
-          "rotation": 0,
-          "color" : "#883344",
-          "scale": 0.01,
+          "type": 1,
           "value": 30
         }
       ],
@@ -75,21 +65,11 @@
       "name": "Town",
       "lootTypes": [
         {
-          "name": "key",
-          "file": "assets/key.obj",
-          "type": "obj",
-          "rotation": 90,
-          "color": "#338844",
-          "scale": 0.03,
+          "type": 0,
           "value": 10
         },
         {
-          "name": "key",
-          "file": "assets/key.obj",
-          "type": "obj",
-          "rotation": 90,
-          "color": "#338844",
-          "scale": 0.03,
+          "type": 1,
           "value": 10
         }
       ],
@@ -343,21 +323,11 @@
       "name": "Map 3",
       "lootTypes": [
         {
-          "name": "key",
-          "file": "assets/key.obj",
-          "type": "obj",
-          "rotation": 90,
-          "color": "#338844",
-          "scale": 0.03,
+          "type": 0,
           "value": 10
         },
         {
-          "name": "wallet",
-          "file": "assets/wallet.obj",
-          "type": "obj",
-          "rotation": 0,
-          "color": "#883344",
-          "scale": 0.01,
+          "type": 1,
           "value": 30
         }
       ],
