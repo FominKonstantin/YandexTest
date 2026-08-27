@@ -12,6 +12,71 @@ using namespace model;
 
 namespace game_state {
 
+    std::optional<::model::Road> FindRoadContainingPoint(const ::model::Map& map,
+                                                     double x, double y,
+                                                     bool prefer_vertical) {
+  const auto& roads = map.GetRoads();
+  const double EPSILON = 0.001;
+
+  for (const auto& road : roads) {
+    if (prefer_vertical && !road.IsVertical()) continue;
+    if (!prefer_vertical && !road.IsHorizontal()) continue;
+
+    if (road.IsHorizontal()) {
+      double min_x = std::min(road.GetStart().x, road.GetEnd().x);
+      double max_x = std::max(road.GetStart().x, road.GetEnd().x);
+      double road_y = road.GetStart().y;
+
+      if (y >= road_y - ROAD_HALF_WIDTH - EPSILON &&
+          y <= road_y + ROAD_HALF_WIDTH + EPSILON &&
+          x >= min_x - ROAD_HALF_WIDTH - EPSILON &&
+          x <= max_x + ROAD_HALF_WIDTH + EPSILON) {
+        return road;
+      }
+    } else {  // Vertical
+      double min_y = std::min(road.GetStart().y, road.GetEnd().y);
+      double max_y = std::max(road.GetStart().y, road.GetEnd().y);
+      double road_x = road.GetStart().x;
+
+      if (x >= road_x - ROAD_HALF_WIDTH - EPSILON &&
+          x <= road_x + ROAD_HALF_WIDTH + EPSILON &&
+          y >= min_y - ROAD_HALF_WIDTH - EPSILON &&
+          y <= max_y + ROAD_HALF_WIDTH + EPSILON) {
+        return road;
+      }
+    }
+  }
+
+  // Второй проход без учёта предпочтений
+  for (const auto& road : roads) {
+    if (road.IsHorizontal()) {
+      double min_x = std::min(road.GetStart().x, road.GetEnd().x);
+      double max_x = std::max(road.GetStart().x, road.GetEnd().x);
+      double road_y = road.GetStart().y;
+
+      if (y >= road_y - ROAD_HALF_WIDTH - EPSILON &&
+          y <= road_y + ROAD_HALF_WIDTH + EPSILON &&
+          x >= min_x - ROAD_HALF_WIDTH - EPSILON &&
+          x <= max_x + ROAD_HALF_WIDTH + EPSILON) {
+        return road;
+      }
+    } else {  // Vertical
+      double min_y = std::min(road.GetStart().y, road.GetEnd().y);
+      double max_y = std::max(road.GetStart().y, road.GetEnd().y);
+      double road_x = road.GetStart().x;
+
+      if (x >= road_x - ROAD_HALF_WIDTH - EPSILON &&
+          x <= road_x + ROAD_HALF_WIDTH + EPSILON &&
+          y >= min_y - ROAD_HALF_WIDTH - EPSILON &&
+          y <= max_y + ROAD_HALF_WIDTH + EPSILON) {
+        return road;
+      }
+    }
+  }
+
+  return std::nullopt;
+}
+
 void UpdateDogsPositionAndGather(
     ::model::Map& map, std::chrono::milliseconds delta_time,
     std::unordered_map<int, ::model::LostObject>& lost_objects,
