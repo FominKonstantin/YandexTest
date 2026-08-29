@@ -207,7 +207,18 @@ class RequestHandler {
               static_cast<int64_t>(retirement_seconds * 1000));
         }
       }
-    } catch (...) {
+    } catch (const boost::json::parse_error& e) {
+      std::cerr << "Error parsing config JSON: " << e.what() << std::endl;
+      config_json_ = {};
+    } catch (const std::out_of_range& e) {
+      std::cerr << "Config JSON missing expected key: " << e.what()
+                << std::endl;
+      config_json_ = {};
+    } catch (const std::runtime_error& e) {
+      std::cerr << "Config error: " << e.what() << std::endl;
+      config_json_ = {};
+    } catch (const std::exception& e) {
+      std::cerr << "Unexpected error loading config: " << e.what() << std::endl;
       config_json_ = {};
     }
   }
