@@ -16,6 +16,11 @@
 namespace http_handler {
 namespace api_handlers {
 
+namespace constants {
+    constexpr int MAX_RECORDS_PER_REQUEST = 100;
+    constexpr int MIN_RECORDS_PER_REQUEST = 1;
+}  // namespace constants
+
 namespace beast = boost::beast;
 namespace http = beast::http;
 
@@ -524,7 +529,7 @@ void HandleRecordsRequest(const http::request<http::string_body>& req,
   }
 
   int start = 0;
-  int maxItems = 100;
+  int maxItems = constants::MAX_RECORDS_PER_REQUEST;
 
   std::string target(req.target());
   auto pos = target.find('?');
@@ -548,17 +553,20 @@ void HandleRecordsRequest(const http::request<http::string_body>& req,
       } else if (key == "maxItems") {
         try {
           maxItems = std::stoi(value);
-          if (maxItems < 1) maxItems = 1;
+          if (maxItems < constants::MIN_RECORDS_PER_REQUEST) {
+            maxItems = constants::MIN_RECORDS_PER_REQUEST;
+          }
         } catch (...) {
         }
       }
     }
   }
 
-  if (maxItems > 100) {
+  if (maxItems > constants::MAX_RECORDS_PER_REQUEST) {
     response_helpers::SendErrorResponse(
         std::forward<Send>(send), http::status::bad_request, "invalidArgument",
-        "maxItems cannot exceed 100");
+        "maxItems cannot exceed " +
+            std::to_string(constants::MAX_RECORDS_PER_REQUEST));
     return;
   }
 
