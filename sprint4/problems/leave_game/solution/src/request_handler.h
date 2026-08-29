@@ -207,7 +207,7 @@ class RequestHandler {
               static_cast<int64_t>(retirement_seconds * 1000));
         }
       }
-    } catch (const boost::json::parse_error& e) {
+    } catch (const boost::system::system_error& e) {
       std::cerr << "Error parsing config JSON: " << e.what() << std::endl;
       config_json_ = {};
     } catch (const std::out_of_range& e) {
