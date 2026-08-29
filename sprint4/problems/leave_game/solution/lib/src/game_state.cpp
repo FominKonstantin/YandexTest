@@ -312,7 +312,7 @@ class GatheringProvider : public collision_detector::ItemGathererProvider {
   size_t ItemsCount() const override { return items_.size(); }
 
   collision_detector::Item GetItem(size_t idx) const override {
-    const auto& obj = items_[idx];
+    const auto& obj = items_.at(idx);
     return {geom::Point2D{obj.position.x, obj.position.y}, 0.0};
   }
 
