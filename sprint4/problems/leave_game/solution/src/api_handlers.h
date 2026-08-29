@@ -548,7 +548,8 @@ void HandleRecordsRequest(const http::request<http::string_body>& req,
         try {
           start = std::stoi(value);
           if (start < 0) start = 0;
-        } catch (...) {
+        } catch (const std::invalid_argument& e) {
+        } catch (const std::out_of_range& e) {
         }
       } else if (key == "maxItems") {
         try {
@@ -556,7 +557,8 @@ void HandleRecordsRequest(const http::request<http::string_body>& req,
           if (maxItems < constants::MIN_RECORDS_PER_REQUEST) {
             maxItems = constants::MIN_RECORDS_PER_REQUEST;
           }
-        } catch (...) {
+        } catch (const std::invalid_argument& e) {
+        } catch (const std::out_of_range& e) {
         }
       }
     }
