@@ -18,7 +18,6 @@ add_subdirectory(lib)
 
 add_executable(game_server
     src/main.cpp
-    src/http_server.cpp
     src/json_loader.cpp
     src/boost_json.cpp
     src/state_manager.cpp          
