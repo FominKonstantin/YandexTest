@@ -26,10 +26,7 @@ class Players {
 
   std::shared_ptr<Player> FindPlayerById(PlayerId id) const {
     auto it = players_by_id_.find(id);
-    if (it == players_by_id_.end()) {
-      return nullptr;
-    }
-    return it->second;
+    return it != players_by_id_.end() ? it->second : nullptr;
   }
 
   void RemovePlayer(PlayerId id) {
