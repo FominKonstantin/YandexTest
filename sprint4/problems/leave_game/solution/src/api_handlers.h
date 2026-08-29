@@ -530,6 +530,7 @@ void HandleRecordsRequest(const http::request<http::string_body>& req,
 
   int start = 0;
   int maxItems = constants::MAX_RECORDS_PER_REQUEST;
+  bool maxItemsProvided = false;
 
   std::string target(req.target());
   auto pos = target.find('?');
@@ -548,20 +549,35 @@ void HandleRecordsRequest(const http::request<http::string_body>& req,
         try {
           start = std::stoi(value);
           if (start < 0) start = 0;
-        } catch (const std::invalid_argument& e) {
-        } catch (const std::out_of_range& e) {
+        } catch (const std::invalid_argument&) {
+        } catch (const std::out_of_range&) {
         }
       } else if (key == "maxItems") {
+        maxItemsProvided = true;
         try {
           maxItems = std::stoi(value);
-          if (maxItems < constants::MIN_RECORDS_PER_REQUEST) {
+          if (maxItems < 0) {
             maxItems = constants::MIN_RECORDS_PER_REQUEST;
           }
-        } catch (const std::invalid_argument& e) {
-        } catch (const std::out_of_range& e) {
+        } catch (const std::invalid_argument&) {
+        } catch (const std::out_of_range&) {
         }
       }
     }
+  }
+
+  if (maxItems == 0) {
+    http::response<http::string_body> response{http::status::ok, 11};
+    response.set(http::field::content_type, "application/json");
+    response.set(http::field::cache_control, "no-cache");
+    response.body() = "[]";
+    response.prepare_payload();
+    send(std::move(response));
+    return;
+  }
+
+  if (maxItems < 0) {
+    maxItems = constants::MIN_RECORDS_PER_REQUEST;
   }
 
   if (maxItems > constants::MAX_RECORDS_PER_REQUEST) {
@@ -569,16 +585,6 @@ void HandleRecordsRequest(const http::request<http::string_body>& req,
         std::forward<Send>(send), http::status::bad_request, "invalidArgument",
         "maxItems cannot exceed " +
             std::to_string(constants::MAX_RECORDS_PER_REQUEST));
-    return;
-  }
-
-  if (maxItems <= 0) {
-    http::response<http::string_body> response{http::status::ok, 11};
-    response.set(http::field::content_type, "application/json");
-    response.set(http::field::cache_control, "no-cache");
-    response.body() = "[]";
-    response.prepare_payload();
-    send(std::move(response));
     return;
   }
 
